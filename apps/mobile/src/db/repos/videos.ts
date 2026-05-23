@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { db } from "../client";
+import { getDb } from "../client.native";
 import { videos, chunks, sessions } from "../schema";
 import type { Chunk, VideoMetadata } from "@shadowtube/shared";
 
@@ -10,6 +10,7 @@ export async function upsertVideo(
   chunkList: Chunk[],
 ): Promise<void> {
   const now = new Date();
+  const db = getDb();
   await db
     .insert(videos)
     .values({
@@ -54,6 +55,7 @@ export async function upsertVideo(
 }
 
 export async function touchVideo(id: string) {
+  const db = getDb();
   await db
     .update(videos)
     .set({ lastOpenedAt: new Date() })
@@ -61,6 +63,7 @@ export async function touchVideo(id: string) {
 }
 
 export async function listRecentVideos(limit = 20) {
+  const db = getDb();
   return db
     .select()
     .from(videos)
@@ -69,11 +72,13 @@ export async function listRecentVideos(limit = 20) {
 }
 
 export async function getVideo(id: string) {
+  const db = getDb();
   const rows = await db.select().from(videos).where(eq(videos.id, id)).limit(1);
   return rows[0] ?? null;
 }
 
 export async function getChunksForVideo(videoId: string) {
+  const db = getDb();
   return db
     .select()
     .from(chunks)

@@ -39,7 +39,7 @@ pnpm --filter @shadowtube/mobile start
 
 `react-native-youtube-iframe`: ref даёт только `seekTo`, `getCurrentTime`. Воспроизведение — prop `play={playing}`. Pause-on-end в `session/[videoId].tsx` через `setInterval(150ms)`.
 
-Peer для web-сборки Metro: `react-native-web-webview` (уже в dependencies). MVP — только Android; `pnpm start` = `expo start --android`.
+Peer для web-сборки Metro: `react-native-web-webview` (уже в dependencies). MVP — только Android. `pnpm start` = `expo start` (без `--android`, чтобы не требовать adb сразу); эмулятор — клавиша `a` после настройки SDK.
 
 ## Не трогать без запроса
 

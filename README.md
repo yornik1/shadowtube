@@ -4,6 +4,8 @@ Android-приложение для **language shadowing** с YouTube: вста�
 
 **Для AI-ассистентов (Cursor / Claude Code):** [AGENTS.md](./AGENTS.md) · [CLAUDE.md](./CLAUDE.md)
 
+**Отладка / Something went wrong:** [docs/DEBUGGING.md](./docs/DEBUGGING.md)
+
 ## Структура
 
 ```
@@ -52,10 +54,20 @@ cd apps/proxy && pnpm deploy
 export EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787
 
 cd apps/mobile
-pnpm start
-# В другом терминале:
-pnpm android
+pnpm start          # Metro; в консоли нажмите `a` для эмулятора
+pnpm start:clear    # то же с очисткой кеша (-c), не ---c
 ```
+
+**Ошибка `spawn adb ENOENT`:** не найден Android SDK. Установите [Android Studio](https://developer.android.com/studio), в SDK Manager включите *Android SDK Platform-Tools*, затем в `~/.zshrc`:
+
+```bash
+export ANDROID_HOME=$HOME/Library/Android/sdk
+export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator
+```
+
+Перезапустите терминал, проверьте: `adb devices`. Запустите эмулятор в Android Studio → снова `pnpm start` → `a`.
+
+Альтернатива без adb на Mac: **Expo Go** на телефоне (тот же Wi‑Fi), отсканировать QR из `pnpm start` (без `--android`).
 
 На физическом устройстве укажите IP машины: `EXPO_PUBLIC_PROXY_URL=http://192.168.x.x:8787`.
 

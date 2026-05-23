@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
-import { db } from "../client";
+import { getDb } from "../client.native";
 import { sessions } from "../schema";
 
 export async function getSession(videoId: string) {
+  const db = getDb();
   const rows = await db
     .select()
     .from(sessions)
@@ -15,6 +16,7 @@ export async function updateSessionProgress(
   videoId: string,
   lastChunkIdx: number,
 ) {
+  const db = getDb();
   const now = new Date();
   await db
     .insert(sessions)

@@ -1,5 +1,4 @@
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
 
 export default function TabLayout() {
   return (
@@ -34,7 +33,6 @@ export default function TabLayout() {
           tabBarLabel: "Настройки",
         }}
       />
-      <Tabs.Screen name="two" options={{ href: null }} />
     </Tabs>
   );
 }

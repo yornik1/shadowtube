@@ -1,7 +1,10 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 
-export default ({ config }: ConfigContext): ExpoConfig => ({
-  ...config,
+export default ({ config }: ConfigContext): ExpoConfig => {
+  const { web: _web, ...base } = config;
+  return {
+  ...base,
+  platforms: ["android"],
   name: "ShadowTube",
   slug: "shadowtube",
   version: "1.0.0",
@@ -28,4 +31,5 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       projectId: process.env.EAS_PROJECT_ID,
     },
   },
-});
+};
+};

@@ -28,10 +28,18 @@ export default function HomeScreen() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [dbError, setDbError] = useState<string | null>(null);
 
   const loadHistory = useCallback(async () => {
-    const items = await listRecentVideos();
-    setHistory(items);
+    try {
+      setDbError(null);
+      const items = await listRecentVideos();
+      setHistory(items);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[ShadowTube] loadHistory:", e);
+      setDbError(msg);
+    }
   }, []);
 
   useFocusEffect(
@@ -110,6 +118,13 @@ export default function HomeScreen() {
           <Text style={styles.btnText}>Начать</Text>
         )}
       </Pressable>
+
+      {dbError ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>Ошибка базы данных</Text>
+          <Text style={styles.errorText}>{dbError}</Text>
+        </View>
+      ) : null}
 
       <Text style={styles.sectionTitle}>Недавние</Text>
       <FlatList
@@ -206,4 +221,14 @@ const styles = StyleSheet.create({
   cardTitle: { color: "#fff", fontSize: 14, fontWeight: "600" },
   cardMeta: { color: "#888", fontSize: 12, marginTop: 4 },
   resumeLabel: { color: "#7eb8ff", fontSize: 12, marginTop: 4 },
+  errorBox: {
+    backgroundColor: "#3a1a1a",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#ff6b6b44",
+  },
+  errorTitle: { color: "#ff6b6b", fontWeight: "600", marginBottom: 4 },
+  errorText: { color: "#ccc", fontSize: 13 },
 });

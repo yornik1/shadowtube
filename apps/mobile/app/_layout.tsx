@@ -5,6 +5,9 @@ import { Pressable, Text, View, StyleSheet, ScrollView } from "react-native";
 import Constants from "expo-constants";
 import { DevErrorBoundary } from "@/src/components/DevErrorBoundary";
 import { useSettingsStore } from "@/src/store/settings";
+import { installDevLog } from "@/src/utils/devLog";
+
+installDevLog();
 
 export function ErrorBoundary({
   error,

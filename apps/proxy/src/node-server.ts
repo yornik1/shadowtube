@@ -6,6 +6,8 @@
  * without starting a real server.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { YoutubeTranscript } from "youtube-transcript";
 import { Innertube } from "youtubei.js";
 
@@ -13,10 +15,47 @@ export const PORT = Number(process.env.PORT ?? 8787);
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
   "Content-Type": "application/json",
 };
+
+const LOG_FILE = path.resolve(process.cwd(), "apps/proxy/dev.log");
+const LOG_MAX_BYTES = 2 * 1024 * 1024; // 2 MB ротейтим, чтобы файл не пух
+
+type LogEntry = { level?: string; ts?: number; msg?: string; tag?: string };
+
+function readJsonBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > 1024 * 1024) reject(new Error("body too large"));
+    });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
+}
+
+function appendLog(entries: LogEntry[]): void {
+  const lines = entries.map((e) => {
+    const ts = new Date(e.ts ?? Date.now()).toISOString();
+    const lvl = (e.level ?? "log").toUpperCase().padEnd(5);
+    const tag = e.tag ? ` [${e.tag}]` : "";
+    return `${ts} ${lvl}${tag} ${e.msg ?? ""}`;
+  });
+  fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
+  // ротация: если перевалили лимит — переименовываем в .1 и начинаем новый
+  try {
+    const st = fs.statSync(LOG_FILE);
+    if (st.size > LOG_MAX_BYTES) {
+      fs.renameSync(LOG_FILE, LOG_FILE + ".1");
+    }
+  } catch {
+    /* файла нет — ок */
+  }
+  fs.appendFileSync(LOG_FILE, lines.join("\n") + "\n");
+}
 
 type Segment = { start: number; duration: number; text: string };
 
@@ -70,6 +109,50 @@ export async function handleRequest(
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
 
   try {
+    // dev-логи с устройства: POST [{level,ts,msg,tag}, ...] → append в файл
+    if (req.method === "POST" && url.pathname === "/log") {
+      const body = await readJsonBody(req);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(body);
+      } catch {
+        res.writeHead(400, CORS);
+        res.end(JSON.stringify({ error: "invalid json" }));
+        return;
+      }
+      const entries = Array.isArray(parsed) ? parsed : [parsed];
+      appendLog(entries as LogEntry[]);
+      res.writeHead(204, CORS);
+      res.end();
+      return;
+    }
+
+    if (req.method === "DELETE" && url.pathname === "/log") {
+      try {
+        fs.rmSync(LOG_FILE, { force: true });
+        fs.rmSync(LOG_FILE + ".1", { force: true });
+      } catch {
+        /* игнор */
+      }
+      res.writeHead(204, CORS);
+      res.end();
+      return;
+    }
+
+    if (url.pathname === "/log/tail") {
+      const n = Number(url.searchParams.get("n") ?? 200);
+      let content = "";
+      try {
+        content = fs.readFileSync(LOG_FILE, "utf8");
+      } catch {
+        /* нет файла */
+      }
+      const tail = content.split("\n").slice(-n).join("\n");
+      res.writeHead(200, { ...CORS, "Content-Type": "text/plain" });
+      res.end(tail);
+      return;
+    }
+
     if (url.pathname === "/transcript") {
       const videoId = url.searchParams.get("videoId");
       if (!videoId) {

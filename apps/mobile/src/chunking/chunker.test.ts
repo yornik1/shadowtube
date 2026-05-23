@@ -43,4 +43,14 @@ describe("chunker", () => {
     const result = chunk(segments, { minSec: 2 });
     expect(result.length).toBe(1);
   });
+
+  it("clamps chunk end to next chunk start", () => {
+    const segments: TranscriptSegment[] = [
+      { start: 0, duration: 5, text: "First sentence." },
+      { start: 10, duration: 2, text: "Second sentence." },
+    ];
+    const result = chunk(segments);
+    expect(result.length).toBeGreaterThanOrEqual(2);
+    expect(result[0]!.end).toBeLessThanOrEqual(result[1]!.start);
+  });
 });

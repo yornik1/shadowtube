@@ -210,6 +210,17 @@ function mergeShortChunks(chunks: Chunk[], minSec: number): Chunk[] {
   return result;
 }
 
+/** Prevent chunk N end from bleeding into chunk N+1 (caption duration vs speech). */
+function clampChunkEnds(chunks: Chunk[]): Chunk[] {
+  if (chunks.length <= 1) return chunks;
+  return chunks.map((c, i) => {
+    if (i >= chunks.length - 1) return c;
+    const cap = chunks[i + 1]!.start;
+    if (c.end <= cap) return c;
+    return { ...c, end: cap };
+  });
+}
+
 /** Group transcript segments into sentence-aware chunks (never split mid-phrase by timer). */
 export function chunk(
   segments: TranscriptSegment[],
@@ -242,5 +253,5 @@ export function chunk(
     ];
   }
 
-  return mergeShortChunks(raw, o.minSec);
+  return clampChunkEnds(mergeShortChunks(raw, o.minSec));
 }

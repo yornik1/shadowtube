@@ -1,0 +1,16 @@
+{
+  "name": "shadowtube",
+  "private": true,
+  "scripts": {
+    "mobile": "pnpm --filter @shadowtube/mobile start",
+    "mobile:android": "pnpm --filter @shadowtube/mobile android",
+    "proxy:dev": "pnpm --filter @shadowtube/proxy dev:node",
+    "proxy:cf": "pnpm --filter @shadowtube/proxy dev",
+    "proxy:deploy": "pnpm --filter @shadowtube/proxy deploy",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

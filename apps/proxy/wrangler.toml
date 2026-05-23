@@ -1,0 +1,6 @@
+name = "shadowtube-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+# Set EXPO_PUBLIC_PROXY_URL in mobile app to your deployed worker URL

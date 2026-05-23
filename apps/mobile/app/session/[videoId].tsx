@@ -20,12 +20,22 @@ import {
 } from "@/src/db/repos/videos";
 import { getSession, updateSessionProgress } from "@/src/db/repos/sessions";
 import { useSettingsStore } from "@/src/store/settings";
+import { prefetchChunkTranslations } from "@/src/api/gemini";
 import type { Chunk } from "@shadowtube/shared";
+
+function formatTime(sec: number): string {
+  const m = Math.floor(sec / 60);
+  const s = Math.floor(sec % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 export default function SessionScreen() {
   const { videoId } = useLocalSearchParams<{ videoId: string }>();
   const playerRef = useRef<YouTubePlayerHandle>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const guardRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const playStartedAtRef = useRef(0);
+  const playingRef = useRef(false);
 
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [index, setIndex] = useState(0);
@@ -39,8 +49,13 @@ export default function SessionScreen() {
   const [selectedContext, setSelectedContext] = useState("");
 
   const geminiKey = useSettingsStore((s) => s.geminiKey);
+  const geminiModel = useSettingsStore((s) => s.geminiModel);
 
   const current = chunks[index];
+
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
 
   const clearPoll = useCallback(() => {
     if (pollRef.current) {
@@ -49,24 +64,79 @@ export default function SessionScreen() {
     }
   }, []);
 
+  const clearGuard = useCallback(() => {
+    if (guardRef.current) {
+      clearInterval(guardRef.current);
+      guardRef.current = null;
+    }
+  }, []);
+
+  /** Keep video inside [chunk.start, chunk.end). Never auto-advance index. */
+  const clampToChunk = useCallback(
+    async (c: Chunk, pause: boolean) => {
+      const t = await playerRef.current?.getCurrentTime();
+      const pos = t != null && t > 0 ? t : c.start;
+      if (pos >= c.end - 0.05 || pos < c.start - 0.05) {
+        playerRef.current?.seekTo(c.start);
+      }
+      if (pause) setPlaying(false);
+    },
+    [],
+  );
+
+  /** Seek to chunk start and pause — used on chunk switch and after end. */
+  const alignToChunk = useCallback(
+    (chunkIdx: number) => {
+      const c = chunks[chunkIdx];
+      if (!c || !ready) return;
+      clearPoll();
+      setPlaying(false);
+      playerRef.current?.seekTo(c.start);
+    },
+    [chunks, ready, clearPoll],
+  );
+
   const playChunk = useCallback(
     (chunkIdx: number) => {
       const c = chunks[chunkIdx];
       if (!c || !ready) return;
       clearPoll();
-      setPlaying(true);
+      playStartedAtRef.current = Date.now();
       playerRef.current?.seekTo(c.start);
+      setPlaying(true);
+
+      const chunkDurationMs = Math.max((c.end - c.start) * 1000, 300);
 
       pollRef.current = setInterval(async () => {
+        const elapsed = Date.now() - playStartedAtRef.current;
         const t = await playerRef.current?.getCurrentTime();
-        if (t == null || t < c.end - 0.05) return;
-        playerRef.current?.seekTo(c.start);
-        setPlaying(false);
-        clearPoll();
-      }, 150);
+        // Bridge often returns 0 — estimate from wall clock
+        const pos =
+          t != null && t > 0 ? t : c.start + elapsed / 1000;
+
+        if (pos >= c.end - 0.08 || elapsed >= chunkDurationMs + 200) {
+          playerRef.current?.seekTo(c.start);
+          setPlaying(false);
+          clearPoll();
+        } else if (pos < c.start - 0.1) {
+          playerRef.current?.seekTo(c.start);
+        }
+      }, 100);
     },
     [chunks, ready, clearPoll],
   );
+
+  /** While paused: snap back if user scrubbed past chunk bounds. */
+  useEffect(() => {
+    if (!ready || !current || playing) {
+      clearGuard();
+      return;
+    }
+    guardRef.current = setInterval(() => {
+      clampToChunk(current, false);
+    }, 400);
+    return () => clearGuard();
+  }, [ready, current, playing, clampToChunk, clearGuard]);
 
   useEffect(() => {
     if (!videoId) return;
@@ -89,8 +159,11 @@ export default function SessionScreen() {
       await touchVideo(videoId);
       setLoading(false);
     })();
-    return () => clearPoll();
-  }, [videoId, clearPoll]);
+    return () => {
+      clearPoll();
+      clearGuard();
+    };
+  }, [videoId, clearPoll, clearGuard]);
 
   useEffect(() => {
     if (!videoId || chunks.length === 0) return;
@@ -99,9 +172,14 @@ export default function SessionScreen() {
 
   useEffect(() => {
     if (ready && chunks.length > 0) {
-      playChunk(index);
+      alignToChunk(index);
     }
-  }, [ready, index, chunks.length, playChunk]);
+  }, [ready, index, chunks.length, alignToChunk]);
+
+  useEffect(() => {
+    if (!geminiKey || !current?.text) return;
+    prefetchChunkTranslations(geminiKey, current.text, geminiModel);
+  }, [geminiKey, geminiModel, current?.text]);
 
   const goPrev = () => {
     if (index > 0) setIndex(index - 1);
@@ -114,12 +192,21 @@ export default function SessionScreen() {
   const replay = () => playChunk(index);
 
   const handleWordPress = (word: string, context: string) => {
-    if (!word) return;
+    if (!word || !current) return;
     setSelectedWord(word);
     setSelectedContext(context);
     setSheetVisible(true);
-    setPlaying(false);
     clearPoll();
+    setPlaying(false);
+    playerRef.current?.seekTo(current.start);
+  };
+
+  const handleSheetClose = () => {
+    setSheetVisible(false);
+    if (current) {
+      playerRef.current?.seekTo(current.start);
+      setPlaying(false);
+    }
   };
 
   if (loading || !videoId) {
@@ -138,12 +225,21 @@ export default function SessionScreen() {
           videoId={videoId}
           playing={playing}
           onReady={() => setReady(true)}
+          onStateChange={(state) => {
+            if (state === "playing" && !playingRef.current && current) {
+              playerRef.current?.seekTo(current.start);
+              setPlaying(false);
+            }
+          }}
         />
       ) : null}
 
-      <Text style={styles.progress}>
-        {title ? `${title.slice(0, 40)}… · ` : ""}
+      <Text style={styles.progress} numberOfLines={2}>
+        {title ? `${title} · ` : ""}
         Чанк {index + 1} / {chunks.length}
+        {current
+          ? ` · ${formatTime(current.start)}–${formatTime(current.end)}`
+          : ""}
       </Text>
 
       <TranscriptView
@@ -181,7 +277,7 @@ export default function SessionScreen() {
         context={selectedContext}
         apiKey={geminiKey}
         sourceVideoId={videoId}
-        onClose={() => setSheetVisible(false)}
+        onClose={handleSheetClose}
       />
     </View>
   );

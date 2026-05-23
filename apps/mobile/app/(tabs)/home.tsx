@@ -238,3 +238,5 @@ const styles = StyleSheet.create({
   errorTitle: { color: "#ff6b6b", fontWeight: "600", marginBottom: 4 },
   errorText: { color: "#ccc", fontSize: 13 },
 });
+
+export default HomeContent;

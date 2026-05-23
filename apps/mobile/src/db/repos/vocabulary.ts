@@ -1,5 +1,5 @@
 import { eq, desc, like, or, sql } from "drizzle-orm";
-import { getDb } from "../client.native";
+import { getDb } from "../client";
 import { vocabulary } from "../schema";
 
 export async function addVocabularyEntry(entry: {

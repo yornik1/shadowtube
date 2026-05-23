@@ -8,13 +8,24 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { useSettingsStore } from "@/src/store/settings";
-import { testApiKey } from "@/src/api/gemini";
+import { verifyApiKey, pickDefaultModel } from "@/src/api/gemini";
 import Constants from "expo-constants";
 
 export default function SettingsScreen() {
-  const { geminiKey, saveKey, loaded } = useSettingsStore();
+  const {
+    geminiKey,
+    saveKey,
+    loaded,
+    geminiModel,
+    saveModel,
+    availableModels,
+    setAvailableModels,
+  } = useSettingsStore();
   const [draft, setDraft] = useState("");
   const [testing, setTesting] = useState(false);
 
@@ -29,7 +40,8 @@ export default function SettingsScreen() {
       return;
     }
     await saveKey(draft.trim());
-    Alert.alert("Сохранено", "Gemini API key сохранён в SecureStore");
+    setDraft("");
+    Alert.alert("Сохранено", "Ключ сохранён. Нажмите «Проверить ключ» для списка моделей.");
   };
 
   const handleTest = async () => {
@@ -39,9 +51,26 @@ export default function SettingsScreen() {
       return;
     }
     setTesting(true);
-    const ok = await testApiKey(key);
+    const result = await verifyApiKey(key);
     setTesting(false);
-    Alert.alert(ok ? "OK" : "Ошибка", ok ? "Ключ работает" : "Проверьте ключ");
+
+    if (!result.ok) {
+      Alert.alert("Ошибка", result.error);
+      return;
+    }
+
+    setAvailableModels(result.models);
+
+    const ids = new Set(result.models.map((m) => m.id));
+    if (!ids.has(geminiModel)) {
+      const picked = pickDefaultModel(result.models);
+      await saveModel(picked);
+    }
+
+    Alert.alert(
+      "OK",
+      `Ключ работает. Доступно моделей: ${result.models.length}. Выберите ниже.`,
+    );
   };
 
   if (!loaded) {
@@ -53,68 +82,100 @@ export default function SettingsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Gemini API Key (BYOK)</Text>
-      <Text style={styles.hint}>
-        Получите бесплатный ключ в Google AI Studio (~1500 req/day)
-      </Text>
-      <Pressable
-        onPress={() =>
-          Linking.openURL("https://aistudio.google.com/apikey")
-        }
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={80}
+    >
+      <ScrollView
+        contentContainerStyle={styles.container}
+        keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.link}>Открыть Google AI Studio →</Text>
-      </Pressable>
+        <Text style={styles.label}>Gemini API Key (BYOK)</Text>
+        <Text style={styles.hint}>Бесплатный ключ в Google AI Studio</Text>
+        <Pressable onPress={() => Linking.openURL("https://aistudio.google.com/apikey")}>
+          <Text style={styles.link}>Открыть Google AI Studio →</Text>
+        </Pressable>
 
-      <TextInput
-        style={styles.input}
-        placeholder="AIza..."
-        placeholderTextColor="#666"
-        value={draft || geminiKey || ""}
-        onChangeText={setDraft}
-        autoCapitalize="none"
-        autoCorrect={false}
-        secureTextEntry
-      />
+        <TextInput
+          style={styles.input}
+          placeholder="AIza..."
+          placeholderTextColor="#666"
+          value={draft || geminiKey || ""}
+          onChangeText={setDraft}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+        />
 
-      <Pressable style={styles.btn} onPress={handleSave}>
-        <Text style={styles.btnText}>Сохранить ключ</Text>
-      </Pressable>
+        <Pressable style={styles.btn} onPress={handleSave}>
+          <Text style={styles.btnText}>Сохранить ключ</Text>
+        </Pressable>
 
-      <Pressable
-        style={[styles.btn, styles.btnSecondary]}
-        onPress={handleTest}
-        disabled={testing}
-      >
-        {testing ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.btnText}>Проверить ключ</Text>
-        )}
-      </Pressable>
+        <Pressable
+          style={[styles.btn, styles.btnSecondary]}
+          onPress={handleTest}
+          disabled={testing}
+        >
+          {testing ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.btnText}>Проверить ключ и загрузить модели</Text>
+          )}
+        </Pressable>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Proxy URL</Text>
-        <Text style={styles.mono}>{proxyUrl}</Text>
-        <Text style={styles.hintSmall}>
-          Задайте EXPO_PUBLIC_PROXY_URL или extra.proxyUrl в app.config
-        </Text>
-      </View>
+        <View style={styles.section}>
+          <Text style={styles.label}>Модель для перевода</Text>
+          <Text style={styles.hint}>Выбрана: {geminiModel}</Text>
 
-      <View style={styles.section}>
-        <Text style={styles.label}>Языки (MVP)</Text>
-        <Text style={styles.hint}>English → Russian (фиксировано)</Text>
-      </View>
-    </View>
+          {availableModels.length === 0 ? (
+            <Text style={styles.hintSmall}>
+              Список моделей появится после проверки ключа
+            </Text>
+          ) : (
+            <View style={styles.chips}>
+              {availableModels.map((m) => {
+                const active = geminiModel === m.id;
+                return (
+                  <Pressable
+                    key={m.id}
+                    style={[styles.chip, active && styles.chipActive]}
+                    onPress={() => saveModel(m.id)}
+                  >
+                    <Text style={[styles.chipTitle, active && styles.chipTextActive]}>
+                      {m.displayName}
+                    </Text>
+                    <Text style={styles.chipId}>{m.id}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Proxy URL</Text>
+          <Text style={styles.mono} selectable>
+            {proxyUrl}
+          </Text>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Языки (MVP)</Text>
+          <Text style={styles.hint}>English → Russian</Text>
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f0f14", padding: 16 },
+  flex: { flex: 1, backgroundColor: "#0f0f14" },
+  container: { padding: 16, paddingBottom: 48 },
   center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#0f0f14" },
   label: { fontSize: 16, fontWeight: "600", color: "#fff", marginBottom: 6 },
   hint: { fontSize: 13, color: "#888", marginBottom: 8 },
-  hintSmall: { fontSize: 12, color: "#666", marginTop: 6 },
+  hintSmall: { fontSize: 12, color: "#666", marginTop: 4 },
   link: { color: "#7eb8ff", marginBottom: 16, fontSize: 14 },
   input: {
     backgroundColor: "#1a1a24",
@@ -133,7 +194,22 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   btnSecondary: { backgroundColor: "#2a3a5a" },
-  btnText: { color: "#fff", fontWeight: "600" },
+  btnText: { color: "#fff", fontWeight: "600", textAlign: "center" },
   section: { marginTop: 24 },
-  mono: { color: "#aaa", fontFamily: "monospace", fontSize: 12 },
+  mono: { color: "#aaa", fontSize: 12 },
+  chips: { gap: 8 },
+  chip: {
+    backgroundColor: "#1a1a24",
+    borderRadius: 10,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#2a2a3a",
+  },
+  chipActive: {
+    borderColor: "#4361ee",
+    backgroundColor: "#2a3a5a",
+  },
+  chipTitle: { color: "#ccc", fontSize: 14, fontWeight: "500" },
+  chipTextActive: { color: "#fff", fontWeight: "700" },
+  chipId: { color: "#666", fontSize: 11, marginTop: 4, fontFamily: "monospace" },
 });

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { getDb } from "../client.native";
+import { getDb } from "../client";
 import { sessions } from "../schema";
 
 export async function getSession(videoId: string) {

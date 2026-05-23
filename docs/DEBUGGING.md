@@ -31,7 +31,14 @@ EXPO_DEBUG=1 pnpm start:clear
 
 **Проверка:** после обновления кода при запуске сверху должна быть синяя полоска `SDK 56 · runtime …`. Если её нет — JS не стартует (несовместимый Expo Go или краш до React).
 
-**Обход:** собрать dev build (`eas build --profile development`) или понизить SDK проекта (тяжело).
+**Узнать текущую версию Expo Go:** открой Expo Go → шестерёнка вверху → About → SDK Version.
+
+**Если SDK не совпадает:** собери dev build через EAS:
+
+```bash
+cd apps/mobile
+npx eas build --profile development --platform android
+```
 
 ## 4. Телефон: открыть dev menu
 
@@ -43,7 +50,9 @@ EXPO_DEBUG=1 pnpm start:clear
 
 | Симптом | Решение |
 |---------|---------|
-| Crash сразу при открытии | Обновить Expo Go; перезапуск `pnpm start:clear` |
+| **`Failed to download remote update`** | Два Metro запущены одновременно. Закройте все терминалы с expo, запустите только `pnpm mobile` из корня |
+| **`Failed to download remote update`** (альт.) | Expo Go лезет на EAS — `updates.enabled: false` в app.config.ts уже выставлен |
+| Crash сразу при открытии | Обновить Expo Go; перезапуск `pnpm mobile` из корня |
 | «Ошибка базы данных» на главной | SQLite — текст ошибки на экране + Metro |
 | Сеть при «Начать» | `EXPO_PUBLIC_PROXY_URL=http://IP-Mac:8787`, proxy: `pnpm proxy:dev` |
 | Открыли localhost:8081 в Chrome | Только Android / Expo Go, не браузер |

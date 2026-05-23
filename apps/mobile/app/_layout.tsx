@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Pressable, Text, View, StyleSheet, ScrollView } from "react-native";
 import Constants from "expo-constants";
 import { DevErrorBoundary } from "@/src/components/DevErrorBoundary";
+import { useSettingsStore } from "@/src/store/settings";
 
 export function ErrorBoundary({
   error,
@@ -79,9 +80,11 @@ const boot = StyleSheet.create({
 
 export default function RootLayout() {
   const [ready, setReady] = useState(false);
+  const load = useSettingsStore((s) => s.load);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => {});
+    load();
     const t = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(t);
   }, []);

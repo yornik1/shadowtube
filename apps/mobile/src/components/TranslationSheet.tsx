@@ -7,9 +7,11 @@ import {
   ActivityIndicator,
   StyleSheet,
   Alert,
+  ScrollView,
 } from "react-native";
 import { translateWord } from "@/src/api/gemini";
 import { addVocabularyEntry } from "@/src/db/repos/vocabulary";
+import { useSettingsStore } from "@/src/store/settings";
 import type { TranslationResult } from "@shadowtube/shared";
 
 type Props = {
@@ -32,21 +34,42 @@ export function TranslationSheet({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TranslationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const geminiModel = useSettingsStore((s) => s.geminiModel);
 
   useEffect(() => {
     if (!visible || !word) return;
+
+    let cancelled = false;
+    const reqWord = word;
+    const reqContext = context;
+
     setResult(null);
     setError(null);
+
     if (!apiKey) {
       setError("Добавьте Gemini API key в Настройках");
       return;
     }
+
     setLoading(true);
-    translateWord(apiKey, word, context)
-      .then(setResult)
-      .catch((e) => setError(e instanceof Error ? e.message : "Ошибка перевода"))
-      .finally(() => setLoading(false));
-  }, [visible, word, context, apiKey]);
+    translateWord(apiKey, reqWord, reqContext, geminiModel)
+      .then((r) => {
+        if (cancelled) return;
+        setResult(r);
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "Ошибка перевода");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [visible, word, context, apiKey, geminiModel]);
 
   const handleSave = async () => {
     if (!result) return;
@@ -68,29 +91,33 @@ export function TranslationSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
-          <Text style={styles.word}>{word}</Text>
-          <Text style={styles.context} numberOfLines={3}>
-            {context}
-          </Text>
-          {loading && <ActivityIndicator color="#7eb8ff" style={styles.loader} />}
-          {error && <Text style={styles.error}>{error}</Text>}
-          {result && (
-            <>
-              <Text style={styles.translation}>{result.translation}</Text>
-              {result.partOfSpeech && (
-                <Text style={styles.meta}>{result.partOfSpeech}</Text>
-              )}
-              {result.example && (
-                <Text style={styles.example}>{result.example}</Text>
-              )}
-              <Pressable style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveBtnText}>Сохранить в словарь</Text>
-              </Pressable>
-            </>
-          )}
-          <Pressable style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>Закрыть</Text>
-          </Pressable>
+          <ScrollView style={styles.scroll} keyboardShouldPersistTaps="handled">
+            <Text style={styles.word}>{word}</Text>
+            <Text style={styles.context}>{context}</Text>
+            {loading && <ActivityIndicator color="#7eb8ff" style={styles.loader} />}
+            {error && <Text style={styles.error}>{error}</Text>}
+            {result && (
+              <>
+                <Text style={styles.translation} numberOfLines={3}>
+                  {result.translation}
+                </Text>
+                {result.partOfSpeech ? (
+                  <Text style={styles.meta}>{result.partOfSpeech}</Text>
+                ) : null}
+                {result.example ? (
+                  <Text style={styles.example} numberOfLines={2}>
+                    {result.example}
+                  </Text>
+                ) : null}
+                <Pressable style={styles.saveBtn} onPress={handleSave}>
+                  <Text style={styles.saveBtnText}>Сохранить в словарь</Text>
+                </Pressable>
+              </>
+            )}
+            <Pressable style={styles.closeBtn} onPress={onClose}>
+              <Text style={styles.closeBtnText}>Закрыть</Text>
+            </Pressable>
+          </ScrollView>
         </Pressable>
       </Pressable>
     </Modal>
@@ -107,10 +134,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#1e1e2e",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 40,
-    minHeight: 200,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 8,
+    maxHeight: "70%",
   },
+  scroll: { flexGrow: 0 },
   word: { fontSize: 24, fontWeight: "700", color: "#fff", marginBottom: 8 },
   context: { fontSize: 14, color: "#888", marginBottom: 16 },
   translation: { fontSize: 28, color: "#7eb8ff", marginBottom: 8 },

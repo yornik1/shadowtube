@@ -1,5 +1,5 @@
 import { eq, desc } from "drizzle-orm";
-import { getDb } from "../client.native";
+import { getDb } from "../client";
 import { videos, chunks, sessions } from "../schema";
 import type { Chunk, VideoMetadata } from "@shadowtube/shared";
 

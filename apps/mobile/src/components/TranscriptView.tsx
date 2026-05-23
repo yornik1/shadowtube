@@ -1,4 +1,4 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
 import type { Chunk } from "@shadowtube/shared";
 
 type Props = {
@@ -30,29 +30,39 @@ function ChunkBlock({
   onWordPress: (word: string, context: string) => void;
 }) {
   const tokens = tokenize(chunk.text);
+  const body = (
+    <Text
+      style={[
+        styles.chunkText,
+        active && styles.activeText,
+        dim && styles.dimText,
+      ]}
+    >
+      {tokens.map((t, i) =>
+        t.type === "word" ? (
+          <Text
+            key={i}
+            onPress={() => onWordPress(t.value.replace(/[^\w'-]/g, ""), chunk.text)}
+            style={active ? styles.tappable : styles.tappableDim}
+          >
+            {t.value}
+          </Text>
+        ) : (
+          <Text key={i}>{t.value}</Text>
+        ),
+      )}
+    </Text>
+  );
+
   return (
     <View style={[styles.chunk, dim && styles.dim, active && styles.active]}>
-      <Text
-        style={[
-          styles.chunkText,
-          active && styles.activeText,
-          dim && styles.dimText,
-        ]}
-      >
-        {tokens.map((t, i) =>
-          t.type === "word" ? (
-            <Text
-              key={i}
-              onPress={() => onWordPress(t.value.replace(/[^\w'-]/g, ""), chunk.text)}
-              style={active ? styles.tappable : styles.tappableDim}
-            >
-              {t.value}
-            </Text>
-          ) : (
-            <Text key={i}>{t.value}</Text>
-          ),
-        )}
-      </Text>
+      {active ? (
+        <ScrollView style={styles.activeScroll} nestedScrollEnabled>
+          {body}
+        </ScrollView>
+      ) : (
+        body
+      )}
     </View>
   );
 }
@@ -100,7 +110,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#1a1a2e",
     borderRadius: 12,
     padding: 16,
+    maxHeight: 220,
   },
+  activeScroll: { flexGrow: 0 },
   dim: { opacity: 0.45 },
   chunkText: { fontSize: 16, lineHeight: 26, color: "#888" },
   activeText: { fontSize: 22, lineHeight: 32, color: "#fff" },

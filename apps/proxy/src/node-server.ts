@@ -1,12 +1,15 @@
 /**
  * Local dev server (Node.js) — fetches YouTube captions for the mobile app.
  * Run: pnpm dev:node
+ *
+ * The HTTP handler is exported separately so it can be imported in tests
+ * without starting a real server.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { YoutubeTranscript } from "youtube-transcript";
 import { Innertube } from "youtubei.js";
 
-const PORT = Number(process.env.PORT ?? 8787);
+export const PORT = Number(process.env.PORT ?? 8787);
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -17,7 +20,7 @@ const CORS = {
 
 type Segment = { start: number; duration: number; text: string };
 
-async function fetchTranscript(videoId: string, lang: string) {
+export async function fetchTranscript(videoId: string, lang: string) {
   const raw = await YoutubeTranscript.fetchTranscript(videoId, { lang });
   const segments: Segment[] = raw.map((item, i) => {
     const next = raw[i + 1];
@@ -40,7 +43,7 @@ async function fetchTranscript(videoId: string, lang: string) {
   };
 }
 
-async function fetchMetadata(videoId: string) {
+export async function fetchMetadata(videoId: string) {
   const innertube = await Innertube.create();
   const info = await innertube.getInfo(videoId);
   const bi = info.basic_info;
@@ -54,7 +57,10 @@ async function fetchMetadata(videoId: string) {
   };
 }
 
-const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+export async function handleRequest(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
   if (req.method === "OPTIONS") {
     res.writeHead(204, CORS);
     res.end();
@@ -104,8 +110,19 @@ const server = createServer(async (req: IncomingMessage, res: ServerResponse) =>
     res.writeHead(404, CORS);
     res.end(JSON.stringify({ error: msg }));
   }
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`ShadowTube proxy (Node) http://localhost:${PORT}`);
-});
+export function startServer(port = PORT) {
+  const server = createServer(handleRequest);
+  return new Promise<typeof server>((resolve) => {
+    server.listen(port, () => {
+      console.log(`ShadowTube proxy (Node) http://localhost:${port}`);
+      resolve(server);
+    });
+  });
+}
+
+// Run when executed directly (not during tests)
+if (!process.env.VITEST) {
+  startServer(PORT);
+}

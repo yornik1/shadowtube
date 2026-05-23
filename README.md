@@ -6,76 +6,149 @@ Android-приложение для **language shadowing** с YouTube: вста�
 
 **Отладка / Something went wrong:** [docs/DEBUGGING.md](./docs/DEBUGGING.md)
 
-## Структура
+---
+
+## Структура monorepo
 
 ```
-shadowtube/
-  apps/mobile/     # Expo React Native (Android)
-  apps/proxy/      # Cloudflare Worker (субтитры + metadata)
-  packages/shared/ # Общие TypeScript-типы
+shadowtube/              ← КОРЕНЬ: все pnpm-команды запускать здесь
+  apps/mobile/           ← Expo React Native (Android)
+  apps/proxy/            ← Node.js proxy-сервер (субтитры + metadata)
+  packages/shared/       ← Общие TypeScript-типы
 ```
 
-## Требования
+> ⚠️ Все команды ниже запускаются **из корня** (`/shadowtube/`), не из `apps/`.
 
-- Node.js 20+
-- pnpm 9+
-- Android Studio / эмулятор или физическое устройство
-- [Wrangler](https://developers.cloudflare.com/workers/wrangler/) для proxy
-- Gemini API key ([Google AI Studio](https://aistudio.google.com/apikey))
+---
 
 ## Быстрый старт
-
-### 1. Установка
 
 ```bash
 pnpm install
 ```
 
-### 2. Proxy (субтитры)
-
-**Локальная разработка** (Node + `youtube-transcript`, рекомендуется):
+### Запуск всего одной командой
 
 ```bash
-pnpm proxy:dev
-# http://localhost:8787
+pnpm dev
+# Запускает proxy (порт 8787) + expo start параллельно.
+# IP определяется автоматически — EXPO_PUBLIC_PROXY_URL выставлять не нужно.
 ```
 
-**Cloudflare Worker** (edge, может не получать сабы без cookies):
+### Если телефон не достучивается до Mac (другая сеть / AP-isolation)
 
 ```bash
-pnpm proxy:cf
-cd apps/proxy && pnpm deploy
+pnpm tunnel
 ```
 
-### 3. Mobile
+Делает всё автоматически:
+1. Поднимает прокси на `:8787`
+2. Открывает **ngrok тоннель** для прокси → публичный HTTPS URL
+3. **Печатает QR** этого URL прямо в терминале — сканируй браузером телефона один раз (разблокировка ngrok)
+4. Запускает `expo start --tunnel` с правильным `EXPO_PUBLIC_PROXY_URL`
+5. Показывает QR Expo для сканирования в Expo Go
+
+Требует: `ngrok` (`brew install ngrok`), `@expo/ngrok` (уже в зависимостях).
+
+Откройте в **Expo Go** на телефоне (тот же Wi-Fi) или запустите эмулятор в Android Studio → нажмите `a` в терминале.
+
+### По отдельности
 
 ```bash
-# Для Android-эмулятора localhost → 10.0.2.2
-export EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787
+# Терминал 1 — proxy (субтитры)
+pnpm proxy:dev        # http://localhost:8787
 
-cd apps/mobile
-pnpm start          # Metro; в консоли нажмите `a` для эмулятора
-pnpm start:clear    # то же с очисткой кеша (-c), не ---c
+# Терминал 2 — мобилка
+pnpm mobile           # expo start; нажмите a = эмулятор, QR = телефон
 ```
 
-**Ошибка `spawn adb ENOENT`:** не найден Android SDK. Установите [Android Studio](https://developer.android.com/studio), в SDK Manager включите *Android SDK Platform-Tools*, затем в `~/.zshrc`:
+---
+
+## Тестирование без телефона
+
+### Вариант 1: тесты (рекомендуется для LLM/CI)
 
 ```bash
-export ANDROID_HOME=$HOME/Library/Android/sdk
-export PATH=$PATH:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator
+# Запустить proxy, потом в другом терминале:
+pnpm test             # unit + integration, 19 тестов
+
+# Или по отдельности:
+pnpm test:proxy       # тесты proxy HTTP (unit + реальный YouTube)
+pnpm test:mobile      # chunker unit + integration flow
 ```
 
-Перезапустите терминал, проверьте: `adb devices`. Запустите эмулятор в Android Studio → снова `pnpm start` → `a`.
+Интеграционные тесты автоматически **пропускаются**, если proxy не запущен — `pnpm test` всегда завершается без ошибок.
 
-Альтернатива без adb на Mac: **Expo Go** на телефоне (тот же Wi‑Fi), отсканировать QR из `pnpm start` (без `--android`).
+Полный прогон (proxy должен работать):
+```bash
+pnpm proxy:dev &
+PROXY_URL=http://localhost:8787 pnpm test
+```
 
-На физическом устройстве укажите IP машины: `EXPO_PUBLIC_PROXY_URL=http://192.168.x.x:8787`.
+### Вариант 2: curl прокси
 
-### 4. Настройка приложения
+```bash
+pnpm proxy:dev   # в отдельном терминале
 
-1. Откройте вкладку **Настройки**.
-2. Вставьте Gemini API key → **Сохранить** → **Проверить ключ**.
-3. На **Главной** вставьте YouTube URL → **Начать**.
+# Проверить transcript:
+curl "http://localhost:8787/transcript?videoId=dQw4w9WgXcQ&lang=en" | jq '.segments | length'
+
+# Проверить metadata:
+curl "http://localhost:8787/metadata?videoId=dQw4w9WgXcQ" | jq '{title, channel}'
+```
+
+### Вариант 3: браузер (ограниченно)
+
+```bash
+pnpm --filter @shadowtube/mobile web
+# Открывает http://localhost:8081 в браузере.
+# Экраны с плеером показывают "Android only" — YouTube IFrame не работает в браузере.
+# Полезно для проверки что app загружается без крашей.
+```
+
+---
+
+## Настройка приложения
+
+1. Вкладка **Настройки** → вставьте Gemini API key ([Google AI Studio](https://aistudio.google.com/apikey)) → **Сохранить** → **Проверить ключ**.
+2. **Главная** → вставьте YouTube URL → **Начать**.
+
+---
+
+## Переменные окружения
+
+| Переменная | Дефолт | Описание |
+|---|---|---|
+| `EXPO_PUBLIC_PROXY_URL` | авто (LAN IP:8787) | URL proxy. Нужно только для переопределения. Эмулятор: `http://10.0.2.2:8787` |
+| `PROXY_URL` | `http://localhost:8787` | Только для тестов (`pnpm test`) |
+
+---
+
+## Полезные команды
+
+```bash
+pnpm dev              # proxy + mobile вместе
+pnpm proxy:dev        # только proxy (Node, порт 8787)
+pnpm mobile           # только expo start
+pnpm mobile:android   # expo start --android
+pnpm test             # все тесты
+pnpm test:proxy       # тесты proxy
+pnpm test:mobile      # тесты mobile
+pnpm typecheck        # TypeScript проверка везде
+```
+
+---
+
+## API proxy
+
+| Endpoint | Params | Response |
+|----------|--------|----------|
+| `GET /transcript` | `videoId`, `lang=en` | `{ segments, hasManualCaptions, language }` |
+| `GET /metadata` | `videoId` | `{ title, channel, durationSec, thumbnail }` |
+
+CORS: `*`. Порт: `PORT` env var (дефолт 8787).
+
+---
 
 ## EAS Build (APK)
 
@@ -85,20 +158,7 @@ npx eas-cli login
 npx eas build -p android --profile preview
 ```
 
-Профили в [`apps/mobile/eas.json`](apps/mobile/eas.json): `preview` (APK, internal), `production`.
-
-## Тесты
-
-```bash
-cd apps/mobile && pnpm test
-```
-
-## API (Worker)
-
-| Endpoint | Params | Response |
-|----------|--------|----------|
-| `GET /transcript` | `videoId`, `lang=en` | `{ segments, hasManualCaptions, language }` |
-| `GET /metadata` | `videoId` | `{ title, channel, durationSec, thumbnail }` |
+---
 
 ## MVP scope
 
@@ -106,7 +166,3 @@ cd apps/mobile && pnpm test
 - Чанкинг по предложениям / паузам (не по таймеру)
 - Resume сессии, локальный словарь
 - **Не в MVP:** Whisper fallback, запись голоса, auth/sync, SRS
-
-## Лицензия
-
-Private / MIT — на ваш выбор.

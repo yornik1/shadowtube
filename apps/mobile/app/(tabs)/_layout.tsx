@@ -19,6 +19,8 @@ export default function TabLayout() {
           tabBarLabel: "Главная",
         }}
       />
+      {/* home.tsx — helper module for index, not a standalone tab */}
+      <Tabs.Screen name="home" options={{ href: null, headerShown: false }} />
       <Tabs.Screen
         name="vocabulary"
         options={{

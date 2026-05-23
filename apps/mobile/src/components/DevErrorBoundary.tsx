@@ -21,15 +21,18 @@ export class DevErrorBoundary extends React.Component<Props, State> {
       return (
         <View style={styles.wrap}>
           <Text style={styles.title}>Ошибка приложения</Text>
-          <Text style={styles.message}>{e.message}</Text>
+          <Text style={styles.message} selectable>
+            {e.message}
+          </Text>
           {e.stack ? (
             <ScrollView style={styles.scroll}>
-              <Text style={styles.stack}>{e.stack}</Text>
+              <Text style={styles.stack} selectable>
+                {e.stack}
+              </Text>
             </ScrollView>
           ) : null}
-          <Text style={styles.hint}>
-            Сфотографируйте экран или скопируйте текст. Также смотрите терминал
-            Metro (pnpm start:clear) — там будет тот же stack.
+          <Text style={styles.hint} selectable>
+            Зажмите текст → Copy. Или смотрите терминал Metro (pnpm start:clear).
           </Text>
           <Pressable
             style={styles.btn}

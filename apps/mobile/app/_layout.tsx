@@ -1,10 +1,8 @@
-import { useFonts } from "expo-font";
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { Pressable, Text, View, StyleSheet } from "react-native";
-import "react-native-reanimated";
-import { useSettingsStore } from "@/src/store/settings";
+import { useEffect, useState } from "react";
+import { Pressable, Text, View, StyleSheet, ScrollView } from "react-native";
+import Constants from "expo-constants";
 import { DevErrorBoundary } from "@/src/components/DevErrorBoundary";
 
 export function ErrorBoundary({
@@ -15,31 +13,26 @@ export function ErrorBoundary({
   retry: () => void;
 }) {
   return (
-    <View style={eb.wrap}>
-      <Text style={eb.title}>Something went wrong</Text>
-      <Text style={eb.message}>{error.message}</Text>
-      {__DEV__ && error.stack ? (
-        <Text style={eb.stack} numberOfLines={12}>
-          {error.stack}
-        </Text>
-      ) : null}
+    <ScrollView contentContainerStyle={eb.wrap}>
+      <Text style={eb.title}>Ошибка</Text>
+      <Text style={eb.message} selectable>
+        {error.message || "Unknown error"}
+      </Text>
+      <Text style={eb.stack} selectable>
+        {error.stack ?? "no stack"}
+      </Text>
       <Pressable style={eb.btn} onPress={retry}>
         <Text style={eb.btnText}>Повторить</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const eb = StyleSheet.create({
-  wrap: {
-    flex: 1,
-    backgroundColor: "#1a0a0a",
-    padding: 24,
-    justifyContent: "center",
-  },
-  title: { color: "#ff6b6b", fontSize: 20, fontWeight: "700", marginBottom: 8 },
-  message: { color: "#fff", fontSize: 15, marginBottom: 12 },
-  stack: { color: "#888", fontSize: 10, marginBottom: 16 },
+  wrap: { flexGrow: 1, backgroundColor: "#1a0a0a", padding: 20, paddingTop: 48 },
+  title: { color: "#ff6b6b", fontSize: 22, fontWeight: "700", marginBottom: 12 },
+  message: { color: "#fff", fontSize: 16, marginBottom: 12 },
+  stack: { color: "#aaa", fontSize: 11, marginBottom: 20 },
   btn: {
     backgroundColor: "#4361ee",
     padding: 14,
@@ -48,12 +41,6 @@ const eb = StyleSheet.create({
   },
   btnText: { color: "#fff", fontWeight: "600" },
 });
-
-export const unstable_settings = {
-  initialRouteName: "(tabs)",
-};
-
-SplashScreen.preventAutoHideAsync();
 
 const theme = {
   ...DarkTheme,
@@ -65,31 +52,52 @@ const theme = {
   },
 };
 
+function BootBanner() {
+  const sdk = Constants.expoConfig?.sdkVersion ?? "?";
+  const runtime = Constants.expoRuntimeVersion ?? "?";
+  return (
+    <View style={boot.wrap}>
+      <Text style={boot.text}>
+        SDK {sdk} · runtime {runtime}
+      </Text>
+      <Text style={boot.sub}>
+        Нужен Expo Go с SDK 56. Обновите из Play Store.
+      </Text>
+    </View>
+  );
+}
+
+const boot = StyleSheet.create({
+  wrap: {
+    backgroundColor: "#2a3a5a",
+    padding: 8,
+    paddingHorizontal: 12,
+  },
+  text: { color: "#fff", fontSize: 12, fontWeight: "600" },
+  sub: { color: "#aac", fontSize: 11, marginTop: 2 },
+});
+
 export default function RootLayout() {
-  const [loaded, error] = useFonts({
-    SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
-  });
-  const loadSettings = useSettingsStore((s) => s.load);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (error) throw error;
-  }, [error]);
+    SplashScreen.hideAsync().catch(() => {});
+    const t = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(t);
+  }, []);
 
-  useEffect(() => {
-    loadSettings().catch((e) =>
-      console.warn("[ShadowTube] settings load:", e),
+  if (!ready) {
+    return (
+      <View style={styles.loading}>
+        <Text style={styles.loadingText}>ShadowTube…</Text>
+      </View>
     );
-  }, [loadSettings]);
-
-  useEffect(() => {
-    if (loaded) SplashScreen.hideAsync();
-  }, [loaded]);
-
-  if (!loaded) return null;
+  }
 
   return (
     <DevErrorBoundary>
       <ThemeProvider value={theme}>
+        <BootBanner />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -106,3 +114,13 @@ export default function RootLayout() {
     </DevErrorBoundary>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: {
+    flex: 1,
+    backgroundColor: "#4361ee",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  loadingText: { color: "#fff", fontSize: 22, fontWeight: "700" },
+});

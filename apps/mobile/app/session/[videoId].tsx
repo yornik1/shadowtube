@@ -5,6 +5,7 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  Image,
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import {
@@ -49,9 +50,6 @@ export default function SessionScreen() {
   const endWatcherRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const replayGenRef = useRef(0);
   const readyOnceRef = useRef(false);
-  // фиксируется по реальному state==='playing', чтобы wall-clock fallback
-  // не убегал на время буферизации Android (500–1000 мс)
-  const playStartedAtRef = useRef<number | null>(null);
 
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [index, setIndex] = useState(0);
@@ -88,32 +86,19 @@ export default function SessionScreen() {
     [ready, clearEndWatcher],
   );
 
-  // 150мс-опрос конца чанка. На Android getCurrentTime() из bridge часто
-  // возвращает 0 пока буфер не прогрет — позиция считается гибридно:
-  // bridge → wall-clock от момента, когда state реально стал 'playing'.
+  /** Wall-clock — основной таймер. Bridge на Android часто залипает (71.00). */
   const startEndWatcher = useCallback(
-    (gen: number, c: Chunk, next?: Chunk) => {
+    (gen: number, c: Chunk, next: Chunk | undefined, startedAt: number) => {
       clearEndWatcher();
-      playStartedAtRef.current = null;
       const endSec = effectiveEnd(c, next) - CAPTION_TRIM_MS / 1000;
-      const expectedDurMs = Math.max((endSec - c.start) * 1000, 300);
-      const watcherStartedAt = Date.now();
+      const durationMs = Math.max((endSec - c.start) * 1000, 300);
       let busy = false;
       let tickN = 0;
 
       dlog(
         "watcher",
-        `start gen=${gen} start=${c.start.toFixed(2)} endSec=${endSec.toFixed(2)} expectedMs=${expectedDurMs}`,
+        `start gen=${gen} start=${c.start.toFixed(2)} endSec=${endSec.toFixed(2)} durMs=${durationMs}`,
       );
-
-      const stopAtChunkEnd = (reason: string) => {
-        dlog("watcher", `stop gen=${gen} reason=${reason}`);
-        clearEndWatcher();
-        setPlaying(false);
-        setTimeout(() => {
-          playerRef.current?.seekTo(c.start);
-        }, 80);
-      };
 
       endWatcherRef.current = setInterval(async () => {
         if (gen !== replayGenRef.current) {
@@ -123,37 +108,42 @@ export default function SessionScreen() {
         if (busy) return;
         busy = true;
         try {
-          let bridgePos: number | null = null;
+          const elapsed = Date.now() - startedAt;
+          const wallPos = c.start + elapsed / 1000;
+
+          let bridgeT = 0;
           try {
             const t = await playerRef.current?.getCurrentTime();
-            if (typeof t === "number" && t > 0) bridgePos = t;
+            if (typeof t === "number" && t > c.start - 0.5) bridgeT = t;
           } catch {
-            /* bridge ещё не готов */
+            /* ignore */
           }
 
           if (gen !== replayGenRef.current) return;
 
-          const wallBase = playStartedAtRef.current ?? watcherStartedAt;
-          const elapsedMs = Date.now() - wallBase;
-          const wallPos = c.start + elapsedMs / 1000;
-          const pos = bridgePos ?? wallPos;
+          // bridge на Android часто залипает (71.00) или от прошлого чанка (72.82)
+          const bridgeOk =
+            bridgeT >= c.start - 0.2 && bridgeT <= wallPos + 1.5;
+          const pos = bridgeOk ? Math.max(wallPos, bridgeT) : wallPos;
 
           tickN++;
           if (tickN === 1 || tickN % 7 === 0) {
             dlog(
               "watcher",
-              `tick#${tickN} bridge=${bridgePos?.toFixed(2) ?? "null"} wall=${wallPos.toFixed(2)} pos=${pos.toFixed(2)} end=${endSec.toFixed(2)} elapsed=${elapsedMs}`,
+              `tick#${tickN} bridge=${bridgeT.toFixed(2)} wall=${wallPos.toFixed(2)} pos=${pos.toFixed(2)} end=${endSec.toFixed(2)} elapsed=${elapsed}`,
             );
           }
 
-          const wallExpired =
-            playStartedAtRef.current != null &&
-            elapsedMs >= expectedDurMs + 500;
-
-          if (pos >= endSec) {
-            stopAtChunkEnd(bridgePos != null ? "bridge>=end" : "wall>=end");
-          } else if (wallExpired) {
-            stopAtChunkEnd("wall-cap");
+          if (pos >= endSec - 0.05 || elapsed >= durationMs + 400) {
+            dlog("watcher", `stop gen=${gen} pos=${pos.toFixed(2)} elapsed=${elapsed}`);
+            clearEndWatcher();
+            setPlaying(false);
+            // play=false на Android часто не паузит iframe — seek назад реально останавливает
+            setTimeout(() => {
+              if (gen === replayGenRef.current) {
+                playerRef.current?.seekTo(c.start);
+              }
+            }, 80);
           }
         } finally {
           busy = false;
@@ -231,7 +221,7 @@ export default function SessionScreen() {
     if (gen !== replayGenRef.current) return;
 
     setPlaying(true);
-    startEndWatcher(gen, current, nextChunk);
+    startEndWatcher(gen, current, nextChunk, Date.now());
   };
 
   const handleWordPress = (word: string, context: string) => {
@@ -261,11 +251,20 @@ export default function SessionScreen() {
     <View style={styles.container}>
       {videoId && current ? (
         <View style={styles.playerWrap}>
+          {!ready && !playerError ? (
+            <Image
+              source={{
+                uri: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+              }}
+              style={styles.playerPoster}
+            />
+          ) : null}
           <YouTubePlayerView
             ref={playerRef}
             videoId={videoId}
             playing={playing}
             onReady={() => {
+              dlog("player", "ready");
               setPlayerError(null);
               setReady(true);
               if (!readyOnceRef.current) {
@@ -274,22 +273,15 @@ export default function SessionScreen() {
               }
             }}
             onError={(err) => {
-              console.warn("[ShadowTube] YouTube player error:", err);
+              dlog("player", `error: ${err}`);
               setPlayerError(err);
               pauseAt(current.start);
             }}
             onStateChange={(state) => {
               dlog("player", `state=${state}`);
-              if (state === "playing") {
-                playStartedAtRef.current = Date.now();
-              } else if (state === "paused") {
-                playStartedAtRef.current = null;
-                clearEndWatcher();
-              } else if (state === "ended") {
-                playStartedAtRef.current = null;
+              if (state === "ended") {
                 clearEndWatcher();
                 setPlaying(false);
-                if (current) playerRef.current?.seekTo(current.start);
               }
             }}
           />
@@ -374,7 +366,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#0f0f14",
   },
-  playerWrap: { position: "relative", height: 220, backgroundColor: "#000" },
+  playerWrap: { position: "relative", width: "100%", backgroundColor: "#000" },
+  playerPoster: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
   playerOverlay: {
     position: "absolute",
     top: 0,

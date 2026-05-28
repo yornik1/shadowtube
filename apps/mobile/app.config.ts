@@ -32,8 +32,6 @@ function resolveProxyUrl(): string {
 export default ({ config }: ConfigContext): ExpoConfig => {
   const { web: _web, ...base } = config;
   const proxyUrl = resolveProxyUrl();
-  // Print so it's visible in `expo start` output
-  console.log(`[app.config] proxy → ${proxyUrl}`);
   return {
     ...base,
     platforms: ["android", "web"],

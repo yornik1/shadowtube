@@ -7,6 +7,7 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { YoutubeTranscript } from "youtube-transcript";
 import { Innertube } from "youtubei.js";
@@ -20,7 +21,9 @@ const CORS = {
   "Content-Type": "application/json",
 };
 
-const LOG_FILE = path.resolve(process.cwd(), "apps/proxy/dev.log");
+// Вне репозитория: apps/proxy/dev.log ломал Metro (watchFolders monorepo)
+// → бесконечная пересборка и «скачивание» в Expo Go.
+const LOG_FILE = path.join(os.tmpdir(), "shadowtube-dev.log");
 const LOG_MAX_BYTES = 2 * 1024 * 1024; // 2 MB ротейтим, чтобы файл не пух
 
 type LogEntry = { level?: string; ts?: number; msg?: string; tag?: string };
@@ -44,7 +47,6 @@ function appendLog(entries: LogEntry[]): void {
     const tag = e.tag ? ` [${e.tag}]` : "";
     return `${ts} ${lvl}${tag} ${e.msg ?? ""}`;
   });
-  fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
   // ротация: если перевалили лимит — переименовываем в .1 и начинаем новый
   try {
     const st = fs.statSync(LOG_FILE);
@@ -55,6 +57,9 @@ function appendLog(entries: LogEntry[]): void {
     /* файла нет — ок */
   }
   fs.appendFileSync(LOG_FILE, lines.join("\n") + "\n");
+  for (const line of lines) {
+    console.log(`[mobile] ${line}`);
+  }
 }
 
 type Segment = { start: number; duration: number; text: string };
@@ -200,6 +205,7 @@ export function startServer(port = PORT) {
   return new Promise<typeof server>((resolve) => {
     server.listen(port, () => {
       console.log(`ShadowTube proxy (Node) http://localhost:${port}`);
+      console.log(`Dev logs → ${LOG_FILE}  (tail -f "${LOG_FILE}")`);
       resolve(server);
     });
   });

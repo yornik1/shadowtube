@@ -101,18 +101,18 @@ try {
 // 4. Print proxy URL
 printProxyUrl(proxyUrl);
 
-// 5. Start expo with --tunnel and the ngrok proxy URL
+// 5. Start expo with --tunnel ( --clear только если передан pnpm tunnel --clear )
+const clearCache = process.argv.includes("--clear");
 console.log("▶ Starting Expo (tunnel mode)…");
+if (clearCache) console.log("  Metro cache: clear");
 console.log("  After Expo starts, scan the QR code shown below in the terminal.");
 console.log("  If QR is not visible, press ? then c to copy the Expo tunnel URL.\n");
 const expoEnv = {
   ...process.env,
   EXPO_PUBLIC_PROXY_URL: proxyUrl,
 };
+const expoArgs = ["--filter", "@shadowtube/mobile", "start", "--", "--tunnel"];
+if (clearCache) expoArgs.push("--clear");
 children.push(
-  run(
-    "pnpm",
-    ["--filter", "@shadowtube/mobile", "start", "--", "--tunnel", "--clear"],
-    { cwd: root, env: expoEnv, stdio: "inherit" },
-  ),
+  run("pnpm", expoArgs, { cwd: root, env: expoEnv, stdio: "inherit" }),
 );

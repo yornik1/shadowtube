@@ -7,8 +7,6 @@ import { DevErrorBoundary } from "@/src/components/DevErrorBoundary";
 import { useSettingsStore } from "@/src/store/settings";
 import { installDevLog } from "@/src/utils/devLog";
 
-installDevLog();
-
 export function ErrorBoundary({
   error,
   retry,
@@ -86,6 +84,7 @@ export default function RootLayout() {
   const load = useSettingsStore((s) => s.load);
 
   useEffect(() => {
+    installDevLog();
     SplashScreen.hideAsync().catch(() => {});
     load();
     const t = setTimeout(() => setReady(true), 100);

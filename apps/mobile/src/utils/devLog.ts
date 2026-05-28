@@ -1,13 +1,16 @@
 /**
- * Dev-логирование на устройстве: патчит console.* и шлёт батчем
- * на proxy `/log`. Включается только в __DEV__. Файл лежит в
- * apps/proxy/dev.log — его читают разработчики/LLM-ассистенты.
+ * Dev-логи: телефон → POST /log → терминал proxy ([mobile] …) + /tmp/shadowtube-dev.log
  *
- * Чтобы посмотреть свежие строки:
- *   curl http://localhost:8787/log/tail?n=200
- *   curl -X DELETE http://localhost:8787/log
+ * В Metro WebSocket НЕ шлём — flood ломает Expo tunnel reload.
+ *
+ * EXPO_PUBLIC_DEV_LOG=0 — выключить
  */
 import Constants from "expo-constants";
+
+const ENABLED =
+  typeof __DEV__ !== "undefined" &&
+  __DEV__ &&
+  process.env.EXPO_PUBLIC_DEV_LOG !== "0";
 
 const PROXY_URL =
   process.env.EXPO_PUBLIC_PROXY_URL ??
@@ -45,53 +48,41 @@ function flush(): void {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(batch),
-  }).catch(() => {
-    // если proxy лежит — теряем эту партию, но не падаем и не зацикливаемся
-  });
+  }).catch(() => {});
 }
 
 function schedule(): void {
   if (timer) return;
-  timer = setTimeout(flush, 250);
+  timer = setTimeout(flush, 800);
 }
 
-function push(level: Level, args: unknown[], tag?: string): void {
+function push(level: Level, msg: string, tag?: string): void {
+  if (!ENABLED) return;
   try {
-    queue.push({ level, ts: Date.now(), msg: format(args), tag });
-    if (queue.length > 500) queue.splice(0, queue.length - 500);
+    queue.push({ level, ts: Date.now(), msg, tag });
+    if (queue.length > 100) queue.splice(0, queue.length - 100);
     schedule();
   } catch {
     /* swallow */
   }
 }
 
-/** Вызывать один раз на старте приложения. */
+/** Патчит console.* → только proxy, не Metro WS. */
 export function installDevLog(): void {
   if (installed) return;
-  if (!__DEV__) return;
+  if (!ENABLED) return;
   installed = true;
 
-  const orig = {
-    log: console.log.bind(console),
-    info: console.info.bind(console),
-    warn: console.warn.bind(console),
-    error: console.error.bind(console),
-    debug: console.debug?.bind(console) ?? console.log.bind(console),
-  };
-
-  (Object.keys(orig) as Level[]).forEach((level) => {
+  (["log", "info", "warn", "error", "debug"] as Level[]).forEach((level) => {
     console[level] = (...args: unknown[]) => {
-      orig[level](...args);
-      push(level, args);
+      push(level, format(args));
     };
   });
 
-  push("info", [`devLog installed → ${PROXY_URL}/log`], "devLog");
+  push("info", `devLog → ${PROXY_URL}/log`, "devLog");
 }
 
-/** Произвольный лог с тегом — удобно искать по конкретной фиче. */
 export function dlog(tag: string, ...args: unknown[]): void {
-  if (!__DEV__) return;
-  console.log(`[${tag}]`, ...args);
-  push("log", args, tag);
+  if (!ENABLED) return;
+  push("log", format(args), tag);
 }

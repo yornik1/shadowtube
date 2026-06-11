@@ -1,0 +1,36 @@
+diff --git a/lib/commonjs/YoutubeIframe.js b/lib/commonjs/YoutubeIframe.js
+--- a/lib/commonjs/YoutubeIframe.js
++++ b/lib/commonjs/YoutubeIframe.js
+@@ -50,11 +50,10 @@
+     if (!playerReady) {
+       return;
+     }
+-    const message = JSON.stringify({
+-      eventName,
+-      meta
+-    });
+-    webViewRef.current.postMessage(message);
++    // ref.postMessage() never reaches the hosted iframe page on Android (RN-WebView
++    // dispatches on `document`, page listens on `window`) — call the YT player directly.
++    const method = {playVideo: 'playVideo', pauseVideo: 'pauseVideo', muteVideo: 'mute', unMuteVideo: 'unMute'}[eventName] || eventName;
++    webViewRef.current.injectJavaScript(`try{player.${method}()}catch(e){};true;`);
+   }, [playerReady]);
+   (0, _react.useImperativeHandle)(ref, () => ({
+     getVideoUrl: () => {
+diff --git a/src/YoutubeIframe.js b/src/YoutubeIframe.js
+--- a/src/YoutubeIframe.js
++++ b/src/YoutubeIframe.js
+@@ -61,8 +61,11 @@
+         return;
+       }
+ 
+-      const message = JSON.stringify({eventName, meta});
+-      webViewRef.current.postMessage(message);
++      // ref.postMessage() never reaches the hosted iframe page on Android (RN-WebView
++      // dispatches on `document`, page listens on `window`) — call the YT player directly.
++      const method =
++        {playVideo: 'playVideo', pauseVideo: 'pauseVideo', muteVideo: 'mute', unMuteVideo: 'unMute'}[eventName] || eventName;
++      webViewRef.current.injectJavaScript(`try{player.${method}()}catch(e){};true;`);
+     },
+     [playerReady],
+   );

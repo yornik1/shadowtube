@@ -7,8 +7,10 @@ const sharedRoot = path.resolve(monorepoRoot, "packages/shared");
 
 const config = getDefaultConfig(projectRoot);
 
-// Только shared — не весь monorepo (proxy/git/IDE не должны триггерить rebundle)
-config.watchFolders = [sharedRoot];
+// shared + корневой node_modules (pnpm .pnpm store — иначе Metro кэширует
+// устаревший realpath для патченных пакетов); не весь monorepo, чтобы
+// proxy/git/IDE не триггерили rebundle
+config.watchFolders = [sharedRoot, path.resolve(monorepoRoot, "node_modules")];
 config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
   path.resolve(monorepoRoot, "node_modules"),

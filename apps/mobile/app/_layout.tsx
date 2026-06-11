@@ -114,6 +114,17 @@ export default function RootLayout() {
               headerTintColor: "#fff",
             }}
           />
+          {__DEV__ ? (
+            <Stack.Screen
+              name="dev/pause-test"
+              options={{
+                title: "Pause E2E",
+                headerShown: true,
+                headerStyle: { backgroundColor: "#0f0f14" },
+                headerTintColor: "#fff",
+              }}
+            />
+          ) : null}
         </Stack>
       </ThemeProvider>
     </DevErrorBoundary>

@@ -1,4 +1,4 @@
-import { useRef, forwardRef, useImperativeHandle } from "react";
+import { useRef, forwardRef, useImperativeHandle, useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -18,6 +18,11 @@ export type YouTubePlayerState =
 export type YouTubePlayerHandle = {
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   getCurrentTime: () => Promise<number>;
+  /** Android: pulse pauseVideo после seek — play=false alone часто не останавливает iframe. */
+  stopAt: (seconds: number) => void;
+  /** Только pulse паузы без seekTo — для ретраев, когда seek уже был.
+   *  @param delayMs опциональная задержка перед pulse (мс, default 0) */
+  pulsePause: (delayMs?: number) => void;
 };
 
 export function formatYouTubeError(code: string | undefined): string | null {
@@ -50,9 +55,40 @@ export const YouTubePlayerView = forwardRef<YouTubePlayerHandle, Props>(
     ref,
   ) {
     const playerRef = useRef<YoutubeIframeRef>(null);
+    /** null = следовать prop playing; иначе override для pulse pause на Android. */
+    const [playOverride, setPlayOverride] = useState<boolean | null>(null);
+    const stopTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
     const { width: screenW } = useWindowDimensions();
     const playerW = Math.max(Math.round(screenW), 320);
     const playerH = Math.max(Math.round((playerW * 9) / 16), 180);
+
+    const playProp = playOverride !== null ? playOverride : playing;
+
+    useEffect(() => {
+      if (playing && playOverride !== null) {
+        setPlayOverride(null);
+      }
+    }, [playing, playOverride]);
+
+    useEffect(() => {
+      return () => {
+        stopTimersRef.current.forEach(clearTimeout);
+        stopTimersRef.current = [];
+      };
+    }, []);
+
+    const firePausePulse = (delayMs = 0) => {
+      // Pulse play→pause чтобы react-native-youtube-iframe отправил pauseVideo
+      // (если play уже false, useEffect библиотеки не шлёт pause повторно)
+      stopTimersRef.current.forEach(clearTimeout);
+      stopTimersRef.current = [];
+      const schedule = (fn: () => void, ms: number) => {
+        stopTimersRef.current.push(setTimeout(fn, delayMs + ms));
+      };
+      schedule(() => setPlayOverride(true), 0);
+      schedule(() => setPlayOverride(false), 40);
+      schedule(() => setPlayOverride(null), 100);
+    };
 
     useImperativeHandle(ref, () => ({
       seekTo: (seconds: number, allowSeekAhead = true) => {
@@ -61,6 +97,15 @@ export const YouTubePlayerView = forwardRef<YouTubePlayerHandle, Props>(
       getCurrentTime: async () => {
         const t = await playerRef.current?.getCurrentTime();
         return typeof t === "number" ? t : 0;
+      },
+      stopAt: (_seconds: number) => {
+        // Пауза придёт от setPlaying(false) вызывающего кода (play=true→false → pauseVideo).
+        // Seek выполняется ПОСЛЕ подтверждения паузы (onStateChange=paused) через seekAfterPauseRef.
+        // НЕ seekTo здесь: seek в небуферизованную позицию во время pause → buffering → pauseVideo игнорируется.
+      },
+      pulsePause: (delayMs = 0) => {
+        // Для ретраев когда play уже false — нужен toggle true→false чтобы lib послал pauseVideo
+        firePausePulse(delayMs);
       },
     }));
 
@@ -71,8 +116,10 @@ export const YouTubePlayerView = forwardRef<YouTubePlayerHandle, Props>(
           ref={playerRef}
           height={playerH}
           width={playerW}
-          play={playing}
+          play={playProp}
           videoId={videoId}
+          mute={false}
+          volume={100}
           forceAndroidAutoplay={Platform.OS === "android"}
           onReady={onReady}
           onError={(code: string) => {

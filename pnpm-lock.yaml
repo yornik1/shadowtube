@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  react-native-youtube-iframe@2.4.1:
+    hash: 86b383749ce3602538b25eba6c9bd44cdfa665bada7693b2f1a8d7155e9a26eb
+    path: patches/react-native-youtube-iframe@2.4.1.patch
+
 importers:
 
   .:
@@ -91,7 +96,7 @@ importers:
         version: 0.8.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
       react-native-youtube-iframe:
         specifier: ^2.3.0
-        version: 2.4.1(react-native-web-webview@1.0.2(file-loader@6.2.0(webpack@5.107.1(lightningcss@1.32.0)))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
+        version: 2.4.1(patch_hash=86b383749ce3602538b25eba6c9bd44cdfa665bada7693b2f1a8d7155e9a26eb)(react-native-web-webview@1.0.2(file-loader@6.2.0(webpack@5.107.1(lightningcss@1.32.0)))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3)
       zustand:
         specifier: ^5.0.3
         version: 5.0.13(@types/react@19.2.15)(react@19.2.3)
@@ -8461,7 +8466,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  react-native-youtube-iframe@2.4.1(react-native-web-webview@1.0.2(file-loader@6.2.0(webpack@5.107.1(lightningcss@1.32.0)))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3):
+  react-native-youtube-iframe@2.4.1(patch_hash=86b383749ce3602538b25eba6c9bd44cdfa665bada7693b2f1a8d7155e9a26eb)(react-native-web-webview@1.0.2(file-loader@6.2.0(webpack@5.107.1(lightningcss@1.32.0)))(react-native-web@0.21.2(react-dom@19.2.3(react@19.2.3))(react@19.2.3)))(react-native-webview@13.16.1(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3))(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.3))(react@19.2.3):
     dependencies:
       events: 3.3.0
       react: 19.2.3

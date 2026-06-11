@@ -5,7 +5,7 @@
     "dev": "concurrently --kill-others-on-fail -n proxy,mobile -c cyan,magenta \"pnpm proxy:dev\" \"pnpm mobile\"",
     "tunnel": "node scripts/tunnel.mjs",
     "mobile": "pnpm --filter @shadowtube/mobile start",
-    "mobile:android": "pnpm --filter @shadowtube/mobile android",
+    "mobile:android": "EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787 pnpm --filter @shadowtube/mobile android",
     "mobile:tunnel": "pnpm --filter @shadowtube/mobile start -- --tunnel",
     "proxy:dev": "pnpm --filter @shadowtube/proxy dev:node",
     "proxy:cf": "pnpm --filter @shadowtube/proxy dev",
@@ -13,10 +13,23 @@
     "test": "pnpm -r test",
     "test:proxy": "pnpm --filter @shadowtube/proxy test",
     "test:mobile": "pnpm --filter @shadowtube/mobile test",
+    "e2e:pause": "node scripts/e2e-pause.mjs",
+    "e2e:pause:open": "node scripts/e2e-pause.mjs --auto-open",
+    "e2e:dev": "node scripts/e2e-dev.mjs",
+    "e2e:pause:maestro": "node scripts/e2e-pause.mjs --maestro",
+    "e2e:stress": "node scripts/e2e-stress.mjs",
+    "e2e:replay": "node scripts/e2e-replay.mjs",
+    "emulator": "./scripts/start-emulator.sh",
+    "expo-go:install": "./scripts/install-expo-go.sh",
     "typecheck": "pnpm -r typecheck"
   },
   "engines": {
     "node": ">=20"
+  },
+  "pnpm": {
+    "patchedDependencies": {
+      "react-native-youtube-iframe@2.4.1": "patches/react-native-youtube-iframe@2.4.1.patch"
+    }
   },
   "devDependencies": {
     "concurrently": "^9.2.1",

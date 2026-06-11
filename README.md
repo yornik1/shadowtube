@@ -4,7 +4,8 @@ Android-приложение для **language shadowing** с YouTube: вста�
 
 **Для AI-ассистентов (Cursor / Claude Code):** [AGENTS.md](./AGENTS.md) · [CLAUDE.md](./CLAUDE.md)
 
-**Отладка / Something went wrong:** [docs/DEBUGGING.md](./docs/DEBUGGING.md)
+**Отладка / Something went wrong:** [docs/DEBUGGING.md](./docs/DEBUGGING.md)  
+**E2E pause-on-end (эмулятор + логи):** [docs/E2E-ANDROID.md](./docs/E2E-ANDROID.md)
 
 ---
 
@@ -97,7 +98,17 @@ curl "http://localhost:8787/transcript?videoId=dQw4w9WgXcQ&lang=en" | jq '.segme
 curl "http://localhost:8787/metadata?videoId=dQw4w9WgXcQ" | jq '{title, channel}'
 ```
 
-### Вариант 3: браузер (ограниченно)
+### Вариант 3: E2E pause-on-end (эмулятор)
+
+```bash
+pnpm proxy:dev                              # терминал 1
+EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787 pnpm mobile:android   # терминал 2
+pnpm e2e:pause:open                         # терминал 3 — adb + assert по логам
+```
+
+Подробнее: [docs/E2E-ANDROID.md](./docs/E2E-ANDROID.md)
+
+### Вариант 4: браузер (ограниченно)
 
 ```bash
 pnpm --filter @shadowtube/mobile web
@@ -134,6 +145,9 @@ pnpm mobile:android   # expo start --android
 pnpm test             # все тесты
 pnpm test:proxy       # тесты proxy
 pnpm test:mobile      # тесты mobile
+pnpm e2e:pause        # E2E pause (логи; replay вручную или dev route)
+pnpm e2e:pause:open   # E2E + adb open /dev/pause-test
+pnpm e2e:pause:maestro # Maestro UI + assert по логам
 pnpm typecheck        # TypeScript проверка везде
 ```
 

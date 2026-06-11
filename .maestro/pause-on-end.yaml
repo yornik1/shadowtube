@@ -1,0 +1,11 @@
+appId: host.exp.exponent
+---
+- launchApp
+- openLink: "exp://10.0.2.2:8081/--/dev/pause-test"
+- extendedWaitUntil:
+    visible: "Pause E2E Test"
+    timeout: 60000
+- extendedWaitUntil:
+    visible: "Replay"
+    timeout: 30000
+- tapOn: "Replay"

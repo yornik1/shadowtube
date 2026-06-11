@@ -5,19 +5,10 @@ alwaysApply: true
 
 # ShadowTube
 
-Языковое shadowing-приложение (Android, Expo 56). Monorepo: `apps/mobile`, `apps/proxy`, `packages/shared`.
+Language shadowing с YouTube (Android, Expo 56). Monorepo: `apps/mobile`, `apps/proxy`, `packages/shared`.
 
 **Полный контекст:** [AGENTS.md](../../AGENTS.md) в корне репозитория.
 
-## Dev
-
-- Субтитры: `pnpm proxy:dev` (Node :8787) — процесс должен работать постоянно.
-- Mobile: `EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787` (эмулятор) + `pnpm mobile`.
-- Локальный proxy: `apps/proxy/src/node-server.ts`, не Cloudflare Worker.
-
-## Правила при правках
-
-- Чанкинг только в `src/chunking/chunker.ts` — по предложениям/паузам, не рвать фразы таймером.
-- Перевод Gemini — BYOK с устройства; ключ в SecureStore, не в env.
-- MVP: en→ru, без auth/sync/Whisper/SRS.
-- Минимальный diff; тесты для chunker при изменении логики нарезки.
+**Dev:** `pnpm proxy:dev` (обязателен, :8787) + `pnpm mobile` с `EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787`.
+**Чанкинг:** по предложениям в `src/chunking/chunker.ts`, не рвать таймером.
+**Не коммитить** без явной просьбы; план-файлы только читать.

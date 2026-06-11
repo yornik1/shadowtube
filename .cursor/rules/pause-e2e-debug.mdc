@@ -1,0 +1,14 @@
+---
+description: Как агенту дебажить pause-on-end на ShadowTube
+alwaysApply: false
+---
+
+# Debug: pause-on-end
+
+На Android WebView `play=false` часто **не паузит** YouTube iframe из-за bridge/WebView особенностей.
+
+**Полный контекст:** [docs/E2E-ANDROID.md](../../docs/E2E-ANDROID.md)
+
+**Dev-цикл:** `pnpm proxy:dev` (терм 1) → `pnpm mobile:android` (терм 2) → `pnpm e2e:pause:open` (терм 3); exit 0 = PASS.
+**Логи:** `curl -s http://localhost:8787/log/tail | grep '\[e2e\]'` — смотреть replay_start → watcher_tick → watcher_stop → player_state.
+**Ключевые файлы:** SessionScreenContent.tsx, YouTubePlayer.tsx, endWatcherLogic.ts, app/dev/pause-test.tsx.

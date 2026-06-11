@@ -100,7 +100,7 @@ CORS: `*`. Node-сервер слушает `PORT` (default 8787).
 - **Платформа MVP:** Android only (Expo).
 - **Языки:** en → ru, хардкод.
 - **Чанкинг:** по пунктуации или паузам между сегментами; **никогда** резать фразу по `maxSec` таймером.
-- **Плеер:** только YouTube IFrame (`seekTo` / `play` prop), без скачивания видео.
+- **Плеер:** только YouTube IFrame (`seekTo` / `play` prop), без скачивания видео. `react-native-youtube-iframe` пропатчен (`patches/`): команды play/pause идут через `injectJavaScript` напрямую в YT API — `ref.postMessage()` на Android не доходит до страницы (диспатч в `document`, страница слушает `window`). Не убирать патч без проверки `pnpm e2e:stress`.
 - **Перевод:** Gemini с телефона, BYOK; ключ в SecureStore.
 - **Авторизация / sync / Whisper / запись голоса / SRS** — out of scope MVP.
 

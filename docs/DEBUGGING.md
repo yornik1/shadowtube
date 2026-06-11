@@ -1,9 +1,5 @@
 # Отладка ShadowTube
 
-## Эмулятор у меня (агента) недоступен
-
-На машине без `adb` / Android Studio агент **не может** открыть эмулятор за вас. Отладка: **Metro-терминал** + **экран ошибки в приложении** (после обновления — виден текст `error.message` и stack).
-
 ## 1. Терминал Metro (главный источник)
 
 ```bash
@@ -75,3 +71,7 @@ npx expo export --platform android --output-dir /tmp/shadowtube-export
 ```
 
 Если падает здесь — ошибка сборки; если ок — проблема runtime на устройстве.
+
+## 8. E2E pause-on-end (автоматизация для агента)
+
+См. [E2E-ANDROID.md](./E2E-ANDROID.md): devLog → proxy `/log/tail`, маршрут `/dev/pause-test`, `pnpm e2e:pause:open`.

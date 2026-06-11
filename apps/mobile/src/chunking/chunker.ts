@@ -253,5 +253,5 @@ export function chunk(
     ];
   }
 
-  return clampChunkEnds(mergeShortChunks(raw, o.minSec));
+  return mergeShortChunks(clampChunkEnds(raw), o.minSec);
 }

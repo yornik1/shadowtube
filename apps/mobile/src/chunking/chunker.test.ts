@@ -53,4 +53,51 @@ describe("chunker", () => {
     expect(result.length).toBeGreaterThanOrEqual(2);
     expect(result[0]!.end).toBeLessThanOrEqual(result[1]!.start);
   });
+
+  it("produces no zero-length chunks from auto-sub style segments (multi-sentence in one segment)", () => {
+    // Mirrors real auto-sub layout: segment A ends at 26.4, segment B starts at 26.4
+    // and contains two sentences → chunkBySentences gave both chunks the same
+    // segStart/segEnd → clampChunkEnds collapsed the first to zero length.
+    const segments: TranscriptSegment[] = [
+      { start: 15.0, duration: 4.08, text: "bets and decisions as a leader of NVIDIA." },
+      { start: 19.08, duration: 7.32, text: "Jensen has been at the helm of NVIDIA for over 30 years." },
+      {
+        start: 26.4,
+        duration: 7.0,
+        text: "This is Lex Fridman Podcast. And now dear friends, here's Jensen Huang.",
+      },
+      { start: 33.4, duration: 4.0, text: "Welcome back." },
+    ];
+    const result = chunk(segments);
+
+    // No zero-length or negative-length chunks
+    expect(result.every((c) => c.end - c.start > 0)).toBe(true);
+
+    // Starts are non-decreasing
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i]!.start).toBeGreaterThanOrEqual(result[i - 1]!.start);
+    }
+
+    // All sentence texts are preserved somewhere in the output
+    const allText = result.map((c) => c.text).join(" ");
+    expect(allText).toContain("Lex Fridman Podcast");
+    expect(allText).toContain("Jensen Huang");
+    expect(allText).toContain("NVIDIA");
+  });
+
+  it("no zero-length chunks when many sentences share the same segment boundaries", () => {
+    // Stress test: 5 sentences all inside a single long segment
+    const segments: TranscriptSegment[] = [
+      {
+        start: 0,
+        duration: 20,
+        text: "First sentence here. Second one follows. Third keeps going. Fourth arrives. Fifth ends it.",
+      },
+    ];
+    const result = chunk(segments);
+    expect(result.every((c) => c.end - c.start > 0)).toBe(true);
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i]!.start).toBeGreaterThanOrEqual(result[i - 1]!.start);
+    }
+  });
 });

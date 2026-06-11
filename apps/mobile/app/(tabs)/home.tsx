@@ -52,7 +52,10 @@ export function HomeContent() {
     setLoading(true);
     try {
       const existingChunks = await getChunksForVideo(videoId);
-      if (existingChunks.length === 0) {
+      const needsRechunk =
+        existingChunks.length === 0 ||
+        existingChunks.some((c) => c.endSec - c.startSec <= 0);
+      if (needsRechunk) {
         const [transcript, meta] = await Promise.all([
           fetchTranscript(videoId, "en"),
           fetchMetadata(videoId),

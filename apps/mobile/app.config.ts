@@ -1,6 +1,9 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
 import os from "os";
 
+const PROD_PROXY_URL =
+  "http://ec2-16-16-146-238.eu-north-1.compute.amazonaws.com:8788";
+
 /** Returns the first non-loopback IPv4 address on the host machine. */
 function getLocalIP(): string {
   try {
@@ -19,12 +22,13 @@ function getLocalIP(): string {
 
 /**
  * Proxy URL resolution order:
- *  1. EXPO_PUBLIC_PROXY_URL env var (set manually for prod / specific IP)
- *  2. Auto-detected LAN IP — works for both emulator and physical device
- *     on the same Wi-Fi without any manual config.
+ *  1. EXPO_PUBLIC_PROXY_URL env var (manual override)
+ *  2. Local LAN IP only when SHADOWTUBE_USE_LOCAL_PROXY=1
+ *  3. Deployed AWS proxy so APKs do not depend on the development LAN.
  */
 function resolveProxyUrl(): string {
   if (process.env.EXPO_PUBLIC_PROXY_URL) return process.env.EXPO_PUBLIC_PROXY_URL;
+  if (process.env.SHADOWTUBE_USE_LOCAL_PROXY !== "1") return PROD_PROXY_URL;
   const ip = getLocalIP();
   return `http://${ip}:8787`;
 }
@@ -56,14 +60,23 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     updates: {
       enabled: false,
     },
-    plugins: ["expo-router", "expo-sqlite", "expo-secure-store"],
+    plugins: [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-font",
+      "expo-splash-screen",
+      "./plugins/withCleartextTraffic",
+    ],
     experiments: {
       typedRoutes: true,
     },
     extra: {
       proxyUrl,
       eas: {
-        projectId: process.env.EAS_PROJECT_ID,
+        projectId:
+          process.env.EAS_PROJECT_ID ??
+          "c472fd1e-fa2b-4ca3-a74d-da0eb6baf131",
       },
     },
   };

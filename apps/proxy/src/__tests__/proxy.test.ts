@@ -84,6 +84,22 @@ describe("proxy handler (unit)", () => {
     const { status } = await request(server, "/", "OPTIONS");
     expect(status).toBe(204);
   });
+
+  it("disables dev log endpoints in production", async () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    try {
+      const { status, body } = await request(server, "/log", "POST");
+      expect(status).toBe(404);
+      expect((body as { error: string }).error).toMatch(/not found/i);
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

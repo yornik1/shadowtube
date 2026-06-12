@@ -1,0 +1,17 @@
+.git
+.github
+.omx
+.omc
+.claude
+.cursor
+.DS_Store
+dist
+node_modules
+apps/*/node_modules
+apps/proxy/.wrangler
+apps/proxy/apps/proxy/dev.log
+apps/mobile/.expo
+apps/mobile/android
+apps/mobile/ios
+coverage
+*.log

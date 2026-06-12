@@ -33,7 +33,8 @@ pnpm install
 ```bash
 pnpm dev
 # Запускает proxy (порт 8787) + expo start параллельно.
-# IP определяется автоматически — EXPO_PUBLIC_PROXY_URL выставлять не нужно.
+# По умолчанию клиент смотрит на AWS proxy; для локального proxy:
+# SHADOWTUBE_USE_LOCAL_PROXY=1 pnpm dev
 ```
 
 ### Если телефон не достучивается до Mac (другая сеть / AP-isolation)
@@ -60,7 +61,7 @@ pnpm tunnel
 pnpm proxy:dev        # http://localhost:8787
 
 # Терминал 2 — мобилка
-pnpm mobile           # expo start; нажмите a = эмулятор, QR = телефон
+SHADOWTUBE_USE_LOCAL_PROXY=1 pnpm mobile   # expo start; нажмите a = эмулятор, QR = телефон
 ```
 
 ---
@@ -130,7 +131,8 @@ pnpm --filter @shadowtube/mobile web
 
 | Переменная | Дефолт | Описание |
 |---|---|---|
-| `EXPO_PUBLIC_PROXY_URL` | авто (LAN IP:8787) | URL proxy. Нужно только для переопределения. Эмулятор: `http://10.0.2.2:8787` |
+| `EXPO_PUBLIC_PROXY_URL` | AWS proxy `:8788` | URL proxy. Нужно только для переопределения. Эмулятор: `http://10.0.2.2:8787` |
+| `SHADOWTUBE_USE_LOCAL_PROXY` | unset | `1` включает авто-LAN proxy `http://<IP-Mac>:8787` в `app.config.ts` |
 | `PROXY_URL` | `http://localhost:8787` | Только для тестов (`pnpm test`) |
 
 ---
@@ -142,6 +144,7 @@ pnpm dev              # proxy + mobile вместе
 pnpm proxy:dev        # только proxy (Node, порт 8787)
 pnpm mobile           # только expo start
 pnpm mobile:android   # expo start --android
+SHADOWTUBE_USE_LOCAL_PROXY=1 pnpm mobile  # dev-клиент против локального proxy
 pnpm test             # все тесты
 pnpm test:proxy       # тесты proxy
 pnpm test:mobile      # тесты mobile
@@ -162,15 +165,61 @@ pnpm typecheck        # TypeScript проверка везде
 
 CORS: `*`. Порт: `PORT` env var (дефолт 8787).
 
+### Production proxy on EC2
+
+GitHub Actions workflow: `.github/workflows/deploy-ec2.yml`.
+
+- EC2 path: `/home/ubuntu/shadowtube`
+- Docker Compose service: `shadowtube-proxy`
+- Container port: `8787`
+- Public host port: `8788`
+- APK/default proxy URL: `http://ec2-16-16-146-238.eu-north-1.compute.amazonaws.com:8788`
+
+Manual deploy after opening AWS Security Group inbound `8788/tcp`:
+
+```bash
+gh workflow run deploy-ec2.yml --repo yornik1/shadowtube \
+  -f deploy_path=/home/ubuntu/shadowtube \
+  -f git_ref=main
+```
+
 ---
 
-## EAS Build (APK)
+## Сборка APK для телефона
+
+### Вариант 1: EAS (облако, рекомендуется)
 
 ```bash
 cd apps/mobile
-npx eas-cli login
-npx eas build -p android --profile preview
+npx eas-cli login          # один раз
+npx eas-cli init --force   # один раз, если проект ещё не привязан
+
+# По умолчанию в APK зашивается AWS proxy на :8788:
+pnpm build:apk
+
+# Для локального proxy вместо AWS:
+EXPO_PUBLIC_PROXY_URL=http://<IP-Mac>:8787 pnpm build:apk
+# или из apps/mobile: npx eas build -p android --profile preview
 ```
+
+Скачайте `.apk` по ссылке из терминала или на [expo.dev](https://expo.dev) → проект **shadowtube** → Builds.
+
+Перед использованием APK нужен доступный AWS proxy на `:8788` либо свой `EXPO_PUBLIC_PROXY_URL`, зашитый при сборке.
+
+### Вариант 2: локально (без EAS)
+
+Требует JDK 17 и Android SDK (`brew install openjdk@17`).
+
+```bash
+cd apps/mobile
+npx expo prebuild --platform android
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+cd android && ./gradlew assembleRelease
+# APK: android/app/build/outputs/apk/release/app-release.apk
+```
+
+Или: `pnpm build:apk:local` (скрипт в корне).
 
 ---
 

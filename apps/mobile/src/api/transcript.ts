@@ -2,7 +2,8 @@ import type { TranscriptResponse, VideoMetadata } from "@shadowtube/shared";
 import Constants from "expo-constants";
 
 const DEFAULT_PROXY =
-  process.env.EXPO_PUBLIC_PROXY_URL ?? "http://localhost:8787";
+  process.env.EXPO_PUBLIC_PROXY_URL ??
+  "http://ec2-16-16-146-238.eu-north-1.compute.amazonaws.com:8788";
 
 function proxyBase(): string {
   const extra = Constants.expoConfig?.extra as

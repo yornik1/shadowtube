@@ -1,8 +1,9 @@
 {
   "name": "shadowtube",
   "private": true,
+  "packageManager": "pnpm@10.33.3",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail -n proxy,mobile -c cyan,magenta \"pnpm proxy:dev\" \"pnpm mobile\"",
+    "dev": "SHADOWTUBE_USE_LOCAL_PROXY=1 concurrently --kill-others-on-fail -n proxy,mobile -c cyan,magenta \"pnpm proxy:dev\" \"pnpm mobile\"",
     "tunnel": "node scripts/tunnel.mjs",
     "mobile": "pnpm --filter @shadowtube/mobile start",
     "mobile:android": "EXPO_PUBLIC_PROXY_URL=http://10.0.2.2:8787 pnpm --filter @shadowtube/mobile android",
@@ -21,7 +22,10 @@
     "e2e:replay": "node scripts/e2e-replay.mjs",
     "emulator": "./scripts/start-emulator.sh",
     "expo-go:install": "./scripts/install-expo-go.sh",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "build:apk": "node scripts/build-apk.mjs",
+    "build:apk:preview": "node scripts/build-apk.mjs --profile preview",
+    "build:apk:local": "node scripts/build-apk-local.mjs"
   },
   "engines": {
     "node": ">=20"

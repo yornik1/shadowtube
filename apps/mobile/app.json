@@ -1,6 +1,7 @@
 {
   "expo": {
     "name": "ShadowTube",
-    "slug": "shadowtube"
+    "slug": "shadowtube",
+    "owner": "yornik"
   }
 }

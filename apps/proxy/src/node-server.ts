@@ -28,6 +28,10 @@ const LOG_MAX_BYTES = 2 * 1024 * 1024; // 2 MB ротейтим, чтобы фа
 
 type LogEntry = { level?: string; ts?: number; msg?: string; tag?: string };
 
+function devLogsEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" || process.env.ENABLE_DEV_LOGS === "1";
+}
+
 function readJsonBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
@@ -114,6 +118,12 @@ export async function handleRequest(
   const url = new URL(req.url ?? "/", `http://localhost:${PORT}`);
 
   try {
+    if (url.pathname.startsWith("/log") && !devLogsEnabled()) {
+      res.writeHead(404, CORS);
+      res.end(JSON.stringify({ error: "not found" }));
+      return;
+    }
+
     // dev-логи с устройства: POST [{level,ts,msg,tag}, ...] → append в файл
     if (req.method === "POST" && url.pathname === "/log") {
       const body = await readJsonBody(req);

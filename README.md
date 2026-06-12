@@ -216,7 +216,7 @@ OTA подходит для JS/asset-изменений: экраны, логи�
 Опубликовать JS-update для установленных preview APK:
 
 ```bash
-pnpm mobile:update -- --message "Fix proxy fallback"
+pnpm mobile:update -m "Fix proxy fallback"
 # эквивалентно:
 # cd apps/mobile
 # npx eas-cli update --channel preview --environment preview --platform android --message "Fix proxy fallback"

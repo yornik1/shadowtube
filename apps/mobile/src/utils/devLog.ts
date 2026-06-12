@@ -14,7 +14,6 @@ const ENABLED =
   process.env.EXPO_PUBLIC_DEV_LOG !== "0";
 
 const PROXY_URL =
-  process.env.EXPO_PUBLIC_PROXY_URL ??
   (Constants.expoConfig?.extra as { proxyUrl?: string } | undefined)?.proxyUrl ??
   PROD_PROXY_URL;
 

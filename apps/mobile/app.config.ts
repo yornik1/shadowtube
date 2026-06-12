@@ -27,8 +27,8 @@ function getLocalIP(): string {
  *  3. Deployed AWS proxy so APKs do not depend on the development LAN.
  */
 function resolveProxyUrl(): string {
-  if (process.env.EXPO_PUBLIC_PROXY_URL) return process.env.EXPO_PUBLIC_PROXY_URL;
   if (process.env.SHADOWTUBE_USE_LOCAL_PROXY !== "1") return PROD_PROXY_URL;
+  if (process.env.EXPO_PUBLIC_PROXY_URL) return process.env.EXPO_PUBLIC_PROXY_URL;
   const ip = getLocalIP();
   return `http://${ip}:8787`;
 }
@@ -55,10 +55,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         monochromeImage: "./assets/images/android-icon-monochrome.png",
       },
     },
-    // Disable OTA updates — dev builds load from Metro, not EAS.
-    // Without this, Expo Go may try to download a remote bundle and fail.
+    runtimeVersion: {
+      policy: "appVersion",
+    },
     updates: {
-      enabled: false,
+      enabled: true,
+      url: "https://u.expo.dev/c472fd1e-fa2b-4ca3-a74d-da0eb6baf131",
     },
     plugins: [
       "expo-router",

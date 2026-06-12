@@ -145,6 +145,7 @@ pnpm proxy:dev        # только proxy (Node, порт 8787)
 pnpm mobile           # только expo start
 pnpm mobile:android   # expo start --android
 SHADOWTUBE_USE_LOCAL_PROXY=1 pnpm mobile  # dev-клиент против локального proxy
+pnpm mobile:update    # OTA update в EAS channel preview (JS/assets only)
 pnpm test             # все тесты
 pnpm test:proxy       # тесты proxy
 pnpm test:mobile      # тесты mobile
@@ -205,6 +206,25 @@ EXPO_PUBLIC_PROXY_URL=http://<IP-Mac>:8787 pnpm build:apk
 Скачайте `.apk` по ссылке из терминала или на [expo.dev](https://expo.dev) → проект **shadowtube** → Builds.
 
 Перед использованием APK нужен доступный AWS proxy на `:8788` либо свой `EXPO_PUBLIC_PROXY_URL`, зашитый при сборке.
+
+### OTA-обновления без переустановки APK
+
+Новые APK собираются с EAS Update (`expo-updates`) и каналом `preview`.
+OTA подходит для JS/asset-изменений: экраны, логика, fallback proxy, тексты.
+Если меняются native modules, Expo plugins, AndroidManifest, SDK или зависимости с native-кодом — нужен новый APK.
+
+Опубликовать JS-update для установленных preview APK:
+
+```bash
+pnpm mobile:update -- --message "Fix proxy fallback"
+# эквивалентно:
+# cd apps/mobile
+# npx eas-cli update --channel preview --environment preview --platform android --message "Fix proxy fallback"
+```
+
+Кто получит update: любой установленный APK ShadowTube, собранный с `channel: preview`
+и совместимым `runtimeVersion`. Это не публичный “хэштег”, но и не приватный per-user
+доступ: если APK установлен у человека, он сможет получить updates этого канала.
 
 ### Вариант 2: локально (без EAS)
 

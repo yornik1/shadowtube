@@ -14,7 +14,10 @@ import {
 } from "react-native";
 import { useSettingsStore } from "@/src/store/settings";
 import { verifyApiKey, pickDefaultModel } from "@/src/api/gemini";
-import Constants from "expo-constants";
+import {
+  buildProxyCandidates,
+  getConfiguredProxyUrl,
+} from "@/src/api/proxyConfig";
 
 export default function SettingsScreen() {
   const {
@@ -23,16 +26,41 @@ export default function SettingsScreen() {
     loaded,
     geminiModel,
     saveModel,
+    proxyUrlOverride,
+    saveProxyUrl,
+    clearProxyUrl,
     availableModels,
     setAvailableModels,
   } = useSettingsStore();
   const [draft, setDraft] = useState("");
+  const [proxyDraft, setProxyDraft] = useState(proxyUrlOverride ?? "");
   const [testing, setTesting] = useState(false);
 
-  const proxyUrl =
-    Constants.expoConfig?.extra?.proxyUrl ??
-    process.env.EXPO_PUBLIC_PROXY_URL ??
-    "http://localhost:8787";
+  const configuredProxyUrl = getConfiguredProxyUrl();
+  const proxyCandidates = buildProxyCandidates({
+    overrideUrl: proxyUrlOverride,
+    configuredUrl: configuredProxyUrl,
+  });
+
+  const handleSaveProxy = async () => {
+    const next = proxyDraft.trim();
+    if (!next) {
+      Alert.alert("Ошибка", "Введите Proxy URL или нажмите «Сбросить»");
+      return;
+    }
+    if (!/^https?:\/\//.test(next)) {
+      Alert.alert("Ошибка", "Proxy URL должен начинаться с http:// или https://");
+      return;
+    }
+    await saveProxyUrl(next);
+    Alert.alert("Сохранено", "Proxy URL сохранён. Новые видео будут грузиться через него.");
+  };
+
+  const handleClearProxy = async () => {
+    await clearProxyUrl();
+    setProxyDraft("");
+    Alert.alert("Сброшено", "Используется встроенный AWS proxy + fallback.");
+  };
 
   const handleSave = async () => {
     if (!draft.trim()) {
@@ -155,8 +183,26 @@ export default function SettingsScreen() {
 
         <View style={styles.section}>
           <Text style={styles.label}>Proxy URL</Text>
+          <Text style={styles.hint}>
+            Первый URL используется сразу, остальные — fallback если host недоступен.
+          </Text>
+          <TextInput
+            style={styles.input}
+            placeholder={configuredProxyUrl}
+            placeholderTextColor="#666"
+            value={proxyDraft}
+            onChangeText={setProxyDraft}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable style={styles.btn} onPress={handleSaveProxy}>
+            <Text style={styles.btnText}>Сохранить Proxy URL</Text>
+          </Pressable>
+          <Pressable style={[styles.btn, styles.btnSecondary]} onPress={handleClearProxy}>
+            <Text style={styles.btnText}>Сбросить на AWS proxy</Text>
+          </Pressable>
           <Text style={styles.mono} selectable>
-            {proxyUrl}
+            {proxyCandidates.join("\n")}
           </Text>
         </View>
 

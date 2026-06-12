@@ -6,6 +6,7 @@
  * EXPO_PUBLIC_DEV_LOG=0 — выключить
  */
 import Constants from "expo-constants";
+import { PROD_PROXY_URL } from "@/src/api/proxyConfig";
 
 const ENABLED =
   typeof __DEV__ !== "undefined" &&
@@ -15,7 +16,7 @@ const ENABLED =
 const PROXY_URL =
   process.env.EXPO_PUBLIC_PROXY_URL ??
   (Constants.expoConfig?.extra as { proxyUrl?: string } | undefined)?.proxyUrl ??
-  "http://10.0.2.2:8787";
+  PROD_PROXY_URL;
 
 type Level = "log" | "info" | "warn" | "error" | "debug";
 type Entry = { level: Level; ts: number; msg: string; tag?: string };

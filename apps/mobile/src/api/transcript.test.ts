@@ -12,7 +12,7 @@ vi.mock("@/src/secure/keychain", () => ({
   getProxyUrlOverride: vi.fn(async () => null),
 }));
 
-import { fetchMetadata } from "./transcript";
+import { fetchMetadata, fetchTranscript } from "./transcript";
 import { PROD_PROXY_IP_URL, PROD_PROXY_URL } from "./proxyConfig";
 
 const originalFetch = globalThis.fetch;
@@ -47,5 +47,26 @@ describe("transcript api", () => {
     expect(meta.title).toBe("Video");
     expect(calls[0]).toContain(PROD_PROXY_URL);
     expect(calls[1]).toContain(PROD_PROXY_IP_URL);
+  });
+
+  it("does not report a reachable proxy HTTP error as proxy unreachable", async () => {
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      calls.push(input.toString());
+      return new Response(
+        JSON.stringify({
+          error:
+            "[YoutubeTranscript] 🚨 Transcript is disabled on this video (vif8NQcjVf0)",
+        }),
+        { status: 404, headers: { "content-type": "application/json" } },
+      );
+    });
+
+    await expect(fetchTranscript("vif8NQcjVf0")).rejects.toThrow(
+      "У этого видео отключены или недоступны английские субтитры",
+    );
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain(PROD_PROXY_URL);
   });
 });

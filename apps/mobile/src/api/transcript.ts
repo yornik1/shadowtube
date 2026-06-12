@@ -1,8 +1,33 @@
 import type { TranscriptResponse, VideoMetadata } from "@shadowtube/shared";
 import { getProxyCandidates } from "./proxyConfig";
 
+class ProxyHttpError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly baseUrl: string,
+  ) {
+    super(message);
+    this.name = "ProxyHttpError";
+  }
+}
+
+function formatProxyHttpError(error: ProxyHttpError): string {
+  const message = error.message;
+  if (/transcript is disabled|transcript disabled/i.test(message)) {
+    return "У этого видео отключены или недоступны английские субтитры. Попробуйте другое видео с captions/subtitles.";
+  }
+  if (/empty transcript/i.test(message)) {
+    return "Proxy ответил, но не нашёл непустые английские субтитры для этого видео.";
+  }
+  if (/videoId required/i.test(message)) {
+    return "Не удалось распознать YouTube videoId.";
+  }
+  return message;
+}
+
 async function get<T>(path: string, params: Record<string, string>): Promise<T> {
-  const errors: string[] = [];
+  const networkErrors: string[] = [];
   const candidates = await getProxyCandidates();
 
   for (const baseUrl of candidates) {
@@ -15,16 +40,23 @@ async function get<T>(path: string, params: Record<string, string>): Promise<T> 
       const res = await fetch(url.toString());
       if (!res.ok) {
         const err = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? `Request failed: ${res.status}`);
+        throw new ProxyHttpError(
+          err.error ?? `Request failed: ${res.status}`,
+          res.status,
+          baseUrl,
+        );
       }
       return res.json() as Promise<T>;
     } catch (e) {
+      if (e instanceof ProxyHttpError) {
+        throw new Error(formatProxyHttpError(e));
+      }
       const msg = e instanceof Error ? e.message : String(e);
-      errors.push(`${baseUrl}: ${msg}`);
+      networkErrors.push(`${baseUrl}: ${msg}`);
     }
   }
 
-  throw new Error(`Proxy unreachable. Tried: ${errors.join("; ")}`);
+  throw new Error(`Proxy unreachable. Tried: ${networkErrors.join("; ")}`);
 }
 
 export async function fetchTranscript(

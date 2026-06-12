@@ -68,8 +68,201 @@ function appendLog(entries: LogEntry[]): void {
 
 type Segment = { start: number; duration: number; text: string };
 
+class ProxyError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode = 500,
+    readonly code = "PROXY_ERROR",
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ProxyError";
+  }
+}
+
+function getYoutubeCookie(): string | undefined {
+  const inlineCookie = process.env.YOUTUBE_COOKIE?.trim();
+  if (inlineCookie) return inlineCookie;
+
+  const cookieFile = process.env.YOUTUBE_COOKIE_FILE?.trim();
+  if (!cookieFile) return undefined;
+
+  try {
+    const fileCookie = fs.readFileSync(cookieFile, "utf8").trim();
+    return fileCookie || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function youtubeFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const cookie = getYoutubeCookie();
+  if (!cookie) return fetch(input, init);
+
+  const headers = new Headers(init?.headers);
+  const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+  try {
+    const host = new URL(url).hostname;
+    if (host.endsWith("youtube.com") || host.endsWith("googlevideo.com")) {
+      headers.set("Cookie", cookie);
+    }
+  } catch {
+    /* keep original request */
+  }
+
+  return fetch(input, { ...init, headers });
+}
+
+function parseInlineJson(html: string, globalName: string): unknown | null {
+  const startToken = `var ${globalName} = `;
+  const startIndex = html.indexOf(startToken);
+  if (startIndex === -1) return null;
+
+  const jsonStart = startIndex + startToken.length;
+  let depth = 0;
+  for (let i = jsonStart; i < html.length; i++) {
+    if (html[i] === "{") depth++;
+    if (html[i] === "}") {
+      depth--;
+      if (depth === 0) {
+        try {
+          return JSON.parse(html.slice(jsonStart, i + 1));
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+type CaptionTrackDebug = {
+  languageCode?: string;
+  name?: string;
+  kind?: string;
+  isTranslatable?: boolean;
+};
+
+type YoutubeDebug = {
+  videoId: string;
+  hasYoutubeCookie: boolean;
+  htmlStatus?: number;
+  playabilityStatus?: string;
+  playabilityReason?: string;
+  captionTracks: CaptionTrackDebug[];
+  hasCaptcha: boolean;
+  hasConsentPage: boolean;
+};
+
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
+}
+
+function getNestedRecord(value: unknown, keys: string[]): Record<string, unknown> | undefined {
+  let current: unknown = value;
+  for (const key of keys) {
+    current = asRecord(current)?.[key];
+  }
+  return asRecord(current);
+}
+
+function getText(value: unknown): string | undefined {
+  const record = asRecord(value);
+  if (typeof record?.simpleText === "string") return record.simpleText;
+  const runs = record?.runs;
+  if (Array.isArray(runs)) {
+    const text = runs
+      .map((run) => asRecord(run)?.text)
+      .filter((part): part is string => typeof part === "string")
+      .join("");
+    return text || undefined;
+  }
+  return undefined;
+}
+
+export async function inspectYoutubeVideo(videoId: string): Promise<YoutubeDebug> {
+  const res = await youtubeFetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    headers: {
+      "Accept-Language": "en-US,en;q=0.9",
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+    },
+  });
+  const html = await res.text();
+  const playerResponse = parseInlineJson(html, "ytInitialPlayerResponse");
+  const playability = asRecord(asRecord(playerResponse)?.playabilityStatus);
+  const tracklist = getNestedRecord(playerResponse, [
+    "captions",
+    "playerCaptionsTracklistRenderer",
+  ]);
+  const rawTracks = tracklist?.captionTracks;
+  const captionTracks = Array.isArray(rawTracks)
+    ? rawTracks.map((track) => {
+        const record = asRecord(track) ?? {};
+        return {
+          languageCode: typeof record.languageCode === "string" ? record.languageCode : undefined,
+          name: getText(record.name),
+          kind: typeof record.kind === "string" ? record.kind : undefined,
+          isTranslatable:
+            typeof record.isTranslatable === "boolean" ? record.isTranslatable : undefined,
+        };
+      })
+    : [];
+
+  return {
+    videoId,
+    hasYoutubeCookie: Boolean(getYoutubeCookie()),
+    htmlStatus: res.status,
+    playabilityStatus:
+      typeof playability?.status === "string" ? playability.status : undefined,
+    playabilityReason:
+      typeof playability?.reason === "string" ? playability.reason : undefined,
+    captionTracks,
+    hasCaptcha: html.includes('class="g-recaptcha"'),
+    hasConsentPage: html.includes("consent.youtube.com"),
+  };
+}
+
+async function classifyTranscriptError(videoId: string, error: unknown): Promise<ProxyError> {
+  const message = error instanceof Error ? error.message : String(error);
+  let debug: YoutubeDebug | undefined;
+  try {
+    debug = await inspectYoutubeVideo(videoId);
+  } catch {
+    /* keep original library error */
+  }
+
+  if (
+    debug?.playabilityStatus === "LOGIN_REQUIRED" ||
+    /sign in to confirm|not a bot|login_required/i.test(debug?.playabilityReason ?? "")
+  ) {
+    return new ProxyError(
+      "YouTube требует вход на proxy-сервере: anonymous request получил LOGIN_REQUIRED / not-a-bot. Добавьте YOUTUBE_COOKIE для proxy или выберите видео, которое YouTube отдаёт без логина.",
+      403,
+      "YOUTUBE_LOGIN_REQUIRED",
+      debug,
+    );
+  }
+
+  if (/transcript is disabled/i.test(message)) {
+    return new ProxyError(
+      "Transcript is disabled or unavailable to the proxy for this video",
+      404,
+      "TRANSCRIPT_UNAVAILABLE",
+      debug,
+    );
+  }
+
+  return new ProxyError(message, 500, "TRANSCRIPT_FETCH_FAILED", debug);
+}
+
 export async function fetchTranscript(videoId: string, lang: string) {
-  const raw = await YoutubeTranscript.fetchTranscript(videoId, { lang });
+  let raw: Awaited<ReturnType<typeof YoutubeTranscript.fetchTranscript>>;
+  try {
+    raw = await YoutubeTranscript.fetchTranscript(videoId, { lang, fetch: youtubeFetch });
+  } catch (error) {
+    throw await classifyTranscriptError(videoId, error);
+  }
   const segments: Segment[] = raw.map((item, i) => {
     const next = raw[i + 1];
     const start = item.offset / 1000;
@@ -182,6 +375,19 @@ export async function handleRequest(
       return;
     }
 
+    if (url.pathname === "/debug/video") {
+      const videoId = url.searchParams.get("videoId");
+      if (!videoId) {
+        res.writeHead(400, CORS);
+        res.end(JSON.stringify({ error: "videoId required" }));
+        return;
+      }
+      const data = await inspectYoutubeVideo(videoId);
+      res.writeHead(200, CORS);
+      res.end(JSON.stringify(data));
+      return;
+    }
+
     if (url.pathname === "/metadata") {
       const videoId = url.searchParams.get("videoId");
       if (!videoId) {
@@ -200,13 +406,20 @@ export async function handleRequest(
       JSON.stringify({
         ok: true,
         server: "node",
-        endpoints: ["/transcript?videoId=", "/metadata?videoId="],
+        endpoints: [
+          "/transcript?videoId=",
+          "/metadata?videoId=",
+          "/debug/video?videoId=",
+        ],
       }),
     );
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Error";
-    res.writeHead(404, CORS);
-    res.end(JSON.stringify({ error: msg }));
+    const statusCode = e instanceof ProxyError ? e.statusCode : 404;
+    const code = e instanceof ProxyError ? e.code : "PROXY_ERROR";
+    const details = e instanceof ProxyError ? e.details : undefined;
+    res.writeHead(statusCode, CORS);
+    res.end(JSON.stringify({ error: msg, code, details }));
   }
 }
 

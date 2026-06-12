@@ -65,7 +65,7 @@ describe("proxy handler (unit)", () => {
     const { status, body } = await request(server, "/");
     expect(status).toBe(200);
     expect(body).toMatchObject({ ok: true, server: "node" });
-    expect((body as { endpoints: string[] }).endpoints).toHaveLength(2);
+    expect((body as { endpoints: string[] }).endpoints).toContain("/debug/video?videoId=");
   });
 
   it("GET /transcript without videoId → 400", async () => {

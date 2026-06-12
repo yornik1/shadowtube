@@ -7,6 +7,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 8787
+      # Optional: authenticated YouTube cookies for videos that return
+      # LOGIN_REQUIRED / "Sign in to confirm you're not a bot" to anonymous EC2.
+      YOUTUBE_COOKIE: ${YOUTUBE_COOKIE:-}
     ports:
       - "8788:8787"
     deploy:

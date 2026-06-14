@@ -1,5 +1,6 @@
 import type { TranscriptResponse, VideoMetadata } from "@shadowtube/shared";
 import { getProxyCandidates } from "./proxyConfig";
+import { fetchDirectMetadata, fetchDirectTranscript } from "./youtubeCaptions";
 
 class ProxyHttpError extends Error {
   constructor(
@@ -22,6 +23,9 @@ function formatProxyHttpError(error: ProxyHttpError): string {
   }
   if (/videoId required/i.test(message)) {
     return "Не удалось распознать YouTube videoId.";
+  }
+  if (/YOUTUBE_LOGIN_REQUIRED|YouTube требует вход|not-a-bot|sign in to confirm/i.test(message)) {
+    return "YouTube требует вход / not-a-bot для этого видео. Попробуйте другой ролик или direct captions с устройства/аккаунта.";
   }
   return message;
 }
@@ -63,9 +67,21 @@ export async function fetchTranscript(
   videoId: string,
   lang = "en",
 ): Promise<TranscriptResponse> {
+  try {
+    return await fetchDirectTranscript(videoId, lang);
+  } catch {
+    // Fallback keeps old APK/dev behavior while direct mobile extraction matures.
+  }
+
   return get<TranscriptResponse>("/transcript", { videoId, lang });
 }
 
 export async function fetchMetadata(videoId: string): Promise<VideoMetadata> {
+  try {
+    return await fetchDirectMetadata(videoId);
+  } catch {
+    // Metadata is also available from the proxy for legacy/dev fallback.
+  }
+
   return get<VideoMetadata>("/metadata", { videoId });
 }

@@ -46,6 +46,30 @@ function extractJson(raw: string): unknown {
   throw new Error("Could not parse translation response");
 }
 
+function plainTextTranslation(raw: string): TranslationResult | null {
+  const text = raw
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^translation\s*[:：-]\s*/i, "")
+    .split("\n")
+    .map((line) => line.replace(/^[-*•\d.)\s]+/, "").trim())
+    .find(Boolean);
+
+  if (!text) return null;
+  const cleaned = text.replace(/^['"]|['"]$/g, "").trim();
+  if (!cleaned || cleaned.length > 80) return null;
+  return { translation: cleaned };
+}
+
+function parseSingleResponse(raw: string): TranslationResult {
+  try {
+    return extractJson(raw) as TranslationResult;
+  } catch {
+    const plain = plainTextTranslation(raw);
+    if (plain) return plain;
+    throw new Error("Could not parse translation response");
+  }
+}
+
 function normalizeWord(w: string): string {
   return w.toLowerCase().replace(/[^\w'-]/g, "").trim();
 }
@@ -130,7 +154,15 @@ async function callWithFallback(
 
 function parseBatchResponse(raw: string, words: string[]): Map<string, TranslationResult> {
   const map = new Map<string, TranslationResult>();
-  const parsed = extractJson(raw) as Record<string, unknown>;
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = extractJson(raw) as Record<string, unknown>;
+  } catch {
+    console.warn("[ShadowTube] Gemini batch response was not JSON", {
+      preview: raw.slice(0, 240),
+    });
+    return map;
+  }
 
   const items =
     (parsed.items as Record<string, TranslationResult> | undefined) ??
@@ -182,7 +214,7 @@ JSON only: {"items":{"word":{"translation":"...","partOfSpeech":"noun|verb|...",
           model,
           `Word "${w}" in "${context}" → brief Russian (1-3 words). JSON: {"translation":"...","partOfSpeech":"...","example":"..."}`,
         );
-        const single = extractJson(singleRaw) as TranslationResult;
+        const single = parseSingleResponse(singleRaw);
         if (single.translation) map.set(w, trimResult(single));
       } catch {
         // skip
@@ -226,7 +258,7 @@ export async function translateWord(
     model,
     `Word "${word}" in "${context}" → brief Russian (1-3 words). JSON: {"translation":"...","partOfSpeech":"...","example":"..."}`,
   );
-  const single = trimResult(extractJson(raw) as TranslationResult);
+  const single = trimResult(parseSingleResponse(raw));
   if (!single.translation) throw new Error("Invalid translation response");
   return single;
 }

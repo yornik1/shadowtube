@@ -59,6 +59,12 @@ export function TranslationSheet({
       })
       .catch((e) => {
         if (cancelled) return;
+        console.error("[ShadowTube] translation failed", {
+          word: reqWord,
+          context: reqContext,
+          model: geminiModel,
+          error: e instanceof Error ? e.message : String(e),
+        });
         setError(e instanceof Error ? e.message : "Ошибка перевода");
       })
       .finally(() => {

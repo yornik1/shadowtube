@@ -30,6 +30,10 @@ function formatProxyHttpError(error: ProxyHttpError): string {
   return message;
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 async function get<T>(path: string, params: Record<string, string>): Promise<T> {
   const networkErrors: string[] = [];
   const candidates = await getProxyCandidates();
@@ -67,21 +71,37 @@ export async function fetchTranscript(
   videoId: string,
   lang = "en",
 ): Promise<TranscriptResponse> {
+  let directError: unknown;
   try {
     return await fetchDirectTranscript(videoId, lang);
-  } catch {
+  } catch (error) {
+    directError = error;
     // Fallback keeps old APK/dev behavior while direct mobile extraction matures.
   }
 
-  return get<TranscriptResponse>("/transcript", { videoId, lang });
+  try {
+    return await get<TranscriptResponse>("/transcript", { videoId, lang });
+  } catch (proxyError) {
+    throw new Error(
+      `Direct YouTube captions failed: ${errorMessage(directError)}\n\nProxy fallback failed: ${errorMessage(proxyError)}`,
+    );
+  }
 }
 
 export async function fetchMetadata(videoId: string): Promise<VideoMetadata> {
+  let directError: unknown;
   try {
     return await fetchDirectMetadata(videoId);
-  } catch {
+  } catch (error) {
+    directError = error;
     // Metadata is also available from the proxy for legacy/dev fallback.
   }
 
-  return get<VideoMetadata>("/metadata", { videoId });
+  try {
+    return await get<VideoMetadata>("/metadata", { videoId });
+  } catch (proxyError) {
+    throw new Error(
+      `Direct YouTube metadata failed: ${errorMessage(directError)}\n\nProxy fallback failed: ${errorMessage(proxyError)}`,
+    );
+  }
 }

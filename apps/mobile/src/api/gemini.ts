@@ -1,4 +1,15 @@
-import type { TranslationResult } from "@shadowtube/shared";
+import type { ChunkTranslation, PhraseTranslation } from "@shadowtube/shared";
+import {
+  buildChunkPrompt,
+  buildPhrasePrompt,
+  parseChunkResponse,
+  parsePhraseResponse,
+} from "./geminiPrompts";
+import {
+  fakeChunkTranslation,
+  fakePhraseTranslation,
+  isFakeGemini,
+} from "./geminiFake";
 
 /** Алиас — всегда последний Flash. Если 404, fallback на gemma. */
 export const DEFAULT_MODEL = "gemini-2.5-flash-latest";
@@ -16,7 +27,6 @@ const FALLBACK_MODELS = [
 ];
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const MAX_WORDS_PER_CHUNK = 24;
 
 const SKIP_MODEL = /embed|aqa|imagen|veo|tts|live|nano-banana|robotics|computer-use/i;
 
@@ -31,69 +41,6 @@ function formatApiError(status: number, body: string): string {
     // not JSON
   }
   return body.slice(0, 200) || `API error ${status}`;
-}
-
-function extractJson(raw: string): unknown {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    // fall through
-  }
-  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fenced?.[1]) return JSON.parse(fenced[1].trim());
-  const braces = raw.match(/\{[\s\S]*\}/);
-  if (braces?.[0]) return JSON.parse(braces[0]);
-  throw new Error("Could not parse translation response");
-}
-
-function plainTextTranslation(raw: string): TranslationResult | null {
-  const text = raw
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/^translation\s*[:：-]\s*/i, "")
-    .split("\n")
-    .map((line) => line.replace(/^[-*•\d.)\s]+/, "").trim())
-    .find(Boolean);
-
-  if (!text) return null;
-  const cleaned = text.replace(/^['"]|['"]$/g, "").trim();
-  if (!cleaned || cleaned.length > 80) return null;
-  return { translation: cleaned };
-}
-
-function parseSingleResponse(raw: string): TranslationResult {
-  try {
-    return extractJson(raw) as TranslationResult;
-  } catch {
-    const plain = plainTextTranslation(raw);
-    if (plain) return plain;
-    throw new Error("Could not parse translation response");
-  }
-}
-
-function normalizeWord(w: string): string {
-  return w.toLowerCase().replace(/[^\w'-]/g, "").trim();
-}
-
-function wordsInSentence(text: string): string[] {
-  const raw = text.match(/[a-zA-Z''-]+/g) ?? [];
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const w of raw) {
-    const n = normalizeWord(w);
-    if (n.length < 2 || seen.has(n)) continue;
-    seen.add(n);
-    out.push(n);
-    if (out.length >= MAX_WORDS_PER_CHUNK) break;
-  }
-  return out;
-}
-
-function trimResult(r: TranslationResult): TranslationResult {
-  return {
-    translation: r.translation.slice(0, 80),
-    partOfSpeech: r.partOfSpeech?.slice(0, 30),
-    example: r.example?.slice(0, 120),
-  };
 }
 
 async function callModel(
@@ -152,121 +99,113 @@ async function callWithFallback(
   throw lastError ?? new Error("Translation failed");
 }
 
-function parseBatchResponse(raw: string, words: string[]): Map<string, TranslationResult> {
-  const map = new Map<string, TranslationResult>();
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = extractJson(raw) as Record<string, unknown>;
-  } catch {
-    console.warn("[ShadowTube] Gemini batch response was not JSON", {
-      preview: raw.slice(0, 240),
-    });
-    return map;
-  }
+/**
+ * Кэш + дедупликация параллельных запросов.
+ *
+ * Один и тот же чанк переводится один раз за сессию: prefetch греет кэш при
+ * смене чанка, тап по фразе почти всегда попадает в готовый результат.
+ */
+function memoize<T>(): {
+  get: (key: string) => T | undefined;
+  run: (key: string, fn: () => Promise<T>) => Promise<T>;
+} {
+  const done = new Map<string, T>();
+  const inflight = new Map<string, Promise<T>>();
 
-  const items =
-    (parsed.items as Record<string, TranslationResult> | undefined) ??
-    (parsed.words as Record<string, TranslationResult> | undefined) ??
-    parsed;
+  return {
+    get: (key) => done.get(key),
+    run: (key, fn) => {
+      const cached = done.get(key);
+      if (cached) return Promise.resolve(cached);
 
-  for (const w of words) {
-    const entry = items[w] as TranslationResult | undefined;
-    if (entry?.translation) map.set(w, trimResult(entry));
-  }
-  return map;
+      const pending = inflight.get(key);
+      if (pending) return pending;
+
+      const promise = fn()
+        .then((value) => {
+          done.set(key, value);
+          return value;
+        })
+        .finally(() => inflight.delete(key));
+
+      inflight.set(key, promise);
+      return promise;
+    },
+  };
 }
 
-type ChunkMap = Map<string, TranslationResult>;
-const chunkCache = new Map<string, ChunkMap>();
-const chunkInflight = new Map<string, Promise<ChunkMap>>();
+const chunkCache = memoize<ChunkTranslation>();
+const phraseCache = memoize<PhraseTranslation>();
 
-/** One API call per sentence — all words cached for instant re-taps. */
-async function loadChunkTranslations(
+function chunkKey(context: string): string {
+  return context.trim();
+}
+
+function phraseKey(span: string, context: string): string {
+  return `${span.trim().toLowerCase()}|${context.trim()}`;
+}
+
+/** Перевод всего чанка целиком + разбор идиом внутри него. */
+export async function translateChunk(
   apiKey: string,
   context: string,
-  model: string,
-): Promise<ChunkMap> {
-  const ctxKey = context.trim();
-  const cached = chunkCache.get(ctxKey);
-  if (cached) return cached;
+  model = DEFAULT_MODEL,
+): Promise<ChunkTranslation> {
+  const key = chunkKey(context);
+  if (!key) throw new Error("Empty chunk");
 
-  const pending = chunkInflight.get(ctxKey);
-  if (pending) return pending;
-
-  const words = wordsInSentence(context);
-  if (words.length === 0) return new Map();
-
-  const promise = (async () => {
-    const prompt = `English sentence: "${context}"
-For EACH word below, give a BRIEF Russian translation (1-3 words max, no sentences).
-Words: ${words.join(", ")}
-JSON only: {"items":{"word":{"translation":"...","partOfSpeech":"noun|verb|...","example":"short phrase"}}}`;
-
-    const raw = await callWithFallback(apiKey, model, prompt);
-    const map = parseBatchResponse(raw, words);
-
-    // Fallback for words missing from batch
-    for (const w of words) {
-      if (map.has(w)) continue;
-      try {
-        const singleRaw = await callWithFallback(
-          apiKey,
-          model,
-          `Word "${w}" in "${context}" → brief Russian (1-3 words). JSON: {"translation":"...","partOfSpeech":"...","example":"..."}`,
-        );
-        const single = parseSingleResponse(singleRaw);
-        if (single.translation) map.set(w, trimResult(single));
-      } catch {
-        // skip
-      }
-    }
-
-    chunkCache.set(ctxKey, map);
-    return map;
-  })().finally(() => chunkInflight.delete(ctxKey));
-
-  chunkInflight.set(ctxKey, promise);
-  return promise;
+  return chunkCache.run(key, async () => {
+    if (isFakeGemini()) return fakeChunkTranslation(key);
+    const raw = await callWithFallback(apiKey, model, buildChunkPrompt(key));
+    return parseChunkResponse(raw);
+  });
 }
 
-/** Warm cache when chunk appears — first tap is faster. */
-export function prefetchChunkTranslations(
+/** Готовый перевод чанка, если он уже в кэше (для мгновенного рендера). */
+export function getCachedChunkTranslation(
+  context: string,
+): ChunkTranslation | undefined {
+  return chunkCache.get(chunkKey(context));
+}
+
+/**
+ * Перевод выделенного отрезка В КОНТЕКСТЕ чанка.
+ *
+ * Пословный режим убран намеренно: слово в вакууме ломается на идиомах,
+ * ради которых всё и затевалось.
+ */
+export async function translatePhrase(
+  apiKey: string,
+  span: string,
+  context: string,
+  model = DEFAULT_MODEL,
+): Promise<PhraseTranslation> {
+  const cleanSpan = span.trim();
+  if (!cleanSpan) throw new Error("Empty phrase");
+  const cleanContext = context.trim() || cleanSpan;
+
+  return phraseCache.run(phraseKey(cleanSpan, cleanContext), async () => {
+    if (isFakeGemini()) return fakePhraseTranslation(cleanSpan);
+    const raw = await callWithFallback(
+      apiKey,
+      model,
+      buildPhrasePrompt(cleanSpan, cleanContext),
+    );
+    return parsePhraseResponse(raw, cleanSpan);
+  });
+}
+
+/** Греем перевод чанка заранее — первый тап по фразе ощущается мгновенным. */
+export function prefetchChunk(
   apiKey: string,
   context: string,
   model = DEFAULT_MODEL,
 ): void {
   if (!context.trim() || !apiKey) return;
-  loadChunkTranslations(apiKey, context, model).catch(() => {});
+  translateChunk(apiKey, context, model).catch(() => {});
 }
 
-export async function translateWord(
-  apiKey: string,
-  word: string,
-  context: string,
-  model = DEFAULT_MODEL,
-): Promise<TranslationResult> {
-  const wKey = normalizeWord(word);
-  if (!wKey) throw new Error("Empty word");
-
-  const map = await loadChunkTranslations(apiKey, context, model);
-  const hit = map.get(wKey);
-  if (hit) return hit;
-
-  // Word not in sentence tokens — single-word fallback
-  const raw = await callWithFallback(
-    apiKey,
-    model,
-    `Word "${word}" in "${context}" → brief Russian (1-3 words). JSON: {"translation":"...","partOfSpeech":"...","example":"..."}`,
-  );
-  const single = trimResult(parseSingleResponse(raw));
-  if (!single.translation) throw new Error("Invalid translation response");
-  return single;
-}
-
-export async function testApiKey(
-  apiKey: string,
-  model = DEFAULT_MODEL,
-): Promise<boolean> {
+export async function testApiKey(apiKey: string): Promise<boolean> {
   const r = await verifyApiKey(apiKey);
   return r.ok;
 }

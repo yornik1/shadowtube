@@ -3,9 +3,14 @@ import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
 import { Pressable, Text, View, StyleSheet, ScrollView } from "react-native";
 import Constants from "expo-constants";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { DevErrorBoundary } from "@/src/components/DevErrorBoundary";
 import { useSettingsStore } from "@/src/store/settings";
 import { installDevLog } from "@/src/utils/devLog";
+import { refreshDueCount } from "@/src/srs/dueStore";
+import { ToastHost, toast } from "@/src/ui/toast";
+import { checkAndDownload } from "@/src/updates/otaUpdates";
+import { colors } from "@/src/ui/theme";
 
 export function ErrorBoundary({
   error,
@@ -57,8 +62,10 @@ const theme = {
 function BootBanner() {
   const sdk = Constants.expoConfig?.sdkVersion ?? "?";
   const runtime = Constants.expoRuntimeVersion ?? "?";
+  const insets = useSafeAreaInsets();
   return (
-    <View style={boot.wrap}>
+    // Без отступа сверху баннер уезжает под системный статус-бар.
+    <View style={[boot.wrap, { paddingTop: insets.top + 8 }]}>
       <Text style={boot.text}>
         SDK {sdk} · runtime {runtime}
       </Text>
@@ -87,6 +94,14 @@ export default function RootLayout() {
     installDevLog();
     SplashScreen.hideAsync().catch(() => {});
     load();
+    refreshDueCount();
+    // Тихая проверка OTA: скачанное применится при следующем запуске.
+    // В Expo Go и dev-сборке функция сама возвращает "unavailable".
+    void checkAndDownload().then((r) => {
+      if (r === "downloaded") {
+        toast.info("Обновление загружено — применится при перезапуске");
+      }
+    });
     const t = setTimeout(() => setReady(true), 100);
     return () => clearTimeout(t);
   }, []);
@@ -102,7 +117,8 @@ export default function RootLayout() {
   return (
     <DevErrorBoundary>
       <ThemeProvider value={theme}>
-        <BootBanner />
+        {/* Баннер версии — отладочный, в релизной сборке только съедает экран. */}
+        {__DEV__ ? <BootBanner /> : null}
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen
@@ -126,6 +142,7 @@ export default function RootLayout() {
             />
           ) : null}
         </Stack>
+        <ToastHost />
       </ThemeProvider>
     </DevErrorBoundary>
   );

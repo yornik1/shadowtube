@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -12,9 +12,26 @@ import {
   type YouTubePlayerHandle,
 } from "@/src/components/YouTubePlayer";
 import { TranscriptView } from "@/src/components/TranscriptView";
-import { TranslationSheet } from "@/src/components/TranslationSheet";
+import { PhraseSheet } from "@/src/components/PhraseSheet";
 import { useSettingsStore } from "@/src/store/settings";
-import { prefetchChunkTranslations } from "@/src/api/gemini";
+import {
+  getCachedChunkTranslation,
+  prefetchChunk,
+  translateChunk,
+} from "@/src/api/gemini";
+import { isFakeGemini } from "@/src/api/geminiFake";
+import { addVocabularyEntry } from "@/src/db/repos/vocabulary";
+import { refreshDueCount } from "@/src/srs/dueStore";
+import {
+  selectedText,
+  selectedWordCount,
+  toggleSelection,
+  tokenize,
+  type Selection,
+} from "@/src/session/spanSelection";
+import { Button } from "@/src/ui/components";
+import { toast } from "@/src/ui/toast";
+import { colors, font, radius, space } from "@/src/ui/theme";
 import { dlog } from "@/src/utils/devLog";
 import { e2eEvent } from "@/src/session/e2eLog";
 import { fetchBridgeTime } from "@/src/session/bridgeTime";
@@ -81,8 +98,12 @@ export function SessionScreenContent({
   const [ready, setReady] = useState(false);
 
   const [sheetVisible, setSheetVisible] = useState(false);
-  const [selectedWord, setSelectedWord] = useState("");
-  const [selectedContext, setSelectedContext] = useState("");
+  /** Выделение внутри активного чанка; null — ничего не выделено. */
+  const [selection, setSelection] = useState<Selection | null>(null);
+  const [showTranslation, setShowTranslation] = useState(false);
+  const [chunkRu, setChunkRu] = useState<string | null>(null);
+  const [chunkRuLoading, setChunkRuLoading] = useState(false);
+  const [savingChunk, setSavingChunk] = useState(false);
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [e2eStatus, setE2eStatus] = useState("ожидание плеера…");
 
@@ -255,10 +276,87 @@ export function SessionScreenContent({
     };
   }, [clearEndWatcher, cancelPauseConfirmTimers]);
 
+  // Греем перевод чанка заранее: тап по фразе почти всегда попадёт в кэш.
   useEffect(() => {
-    if (!geminiKey || !current?.text) return;
-    prefetchChunkTranslations(geminiKey, current.text, geminiModel);
+    if (!current?.text) return;
+    if (!geminiKey && !isFakeGemini()) return;
+    prefetchChunk(geminiKey ?? "", current.text, geminiModel);
   }, [geminiKey, geminiModel, current?.text]);
+
+  // Новый чанк — старое выделение и старый перевод больше не относятся к делу.
+  useEffect(() => {
+    setSelection(null);
+    setChunkRu(current?.text ? (getCachedChunkTranslation(current.text)?.ru ?? null) : null);
+  }, [current?.text]);
+
+  const tokens = useMemo(
+    () => (current?.text ? tokenize(current.text) : []),
+    [current?.text],
+  );
+  const phrase = selectedText(tokens, selection);
+  const phraseWords = selectedWordCount(tokens, selection);
+
+  const loadChunkTranslation = useCallback(async (): Promise<string | null> => {
+    if (!current?.text) return null;
+    const cached = getCachedChunkTranslation(current.text);
+    if (cached) {
+      setChunkRu(cached.ru);
+      return cached.ru;
+    }
+    if (!geminiKey && !isFakeGemini()) {
+      toast.error("Добавьте Gemini API key в Настройках");
+      return null;
+    }
+    setChunkRuLoading(true);
+    try {
+      const r = await translateChunk(geminiKey ?? "", current.text, geminiModel);
+      setChunkRu(r.ru);
+      return r.ru;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Ошибка перевода");
+      return null;
+    } finally {
+      setChunkRuLoading(false);
+    }
+  }, [current?.text, geminiKey, geminiModel]);
+
+  const toggleChunkTranslation = useCallback(() => {
+    e2eEvent("btn", { btn: "chunk_ru", idx: index });
+    const next = !showTranslation;
+    setShowTranslation(next);
+    // Загрузку запускаем СНАРУЖИ апдейтера: внутри он выполняется во время
+    // рендера, и любой setState из него (тост об ошибке) ломает React.
+    if (next && !chunkRu) void loadChunkTranslation();
+  }, [chunkRu, index, loadChunkTranslation, showTranslation]);
+
+  /** Сохранить весь чанк целиком — «лучшая фраза сессии» одним тапом. */
+  const saveWholeChunk = useCallback(async () => {
+    if (!current || savingChunk) return;
+    setSavingChunk(true);
+    e2eEvent("btn", { btn: "save_chunk", idx: index });
+    try {
+      const ru = chunkRu ?? (await loadChunkTranslation());
+      if (!ru) return;
+      const { created } = await addVocabularyEntry({
+        text: current.text,
+        context: current.text,
+        translation: ru,
+        kind: "chunk",
+        sourceVideoId: videoId,
+        chunkIdx: index,
+        startSec: current.start,
+        endSec: current.end,
+      });
+      if (created) refreshDueCount();
+      toast[created ? "success" : "info"](
+        created ? "Чанк сохранён в словарь" : "Этот чанк уже в словаре",
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Не удалось сохранить");
+    } finally {
+      setSavingChunk(false);
+    }
+  }, [current, chunkRu, index, loadChunkTranslation, savingChunk, videoId]);
 
   const playChunkAt = useCallback(
     async (idx: number) => {
@@ -326,18 +424,30 @@ export function SessionScreenContent({
     if (index < chunks.length - 1) goToChunk(index + 1);
   };
 
-  const handleWordPress = (word: string, context: string) => {
-    if (!word || !current) return;
-    e2eEvent("btn", { btn: "word", idx: index });
-    setSelectedWord(word);
-    setSelectedContext(context);
+  /**
+   * Тап по слову только ВЫДЕЛЯЕТ — перевод запускает отдельная кнопка.
+   * Так второй тап успевает растянуть выделение до целой фразы, и мы не
+   * дёргаем Gemini на каждое случайное касание.
+   */
+  const handleTokenPress = (tokenIndex: number) => {
+    if (!current) return;
+    const next = toggleSelection(selection, tokenIndex);
+    setSelection(next);
+    e2eEvent("select", { idx: index, tokenIndex, selected: next !== null });
+    // Останавливаем воспроизведение на первом же касании — читать удобнее в тишине.
+    if (next && !selection) pauseAt(current.start);
+  };
+
+  const openPhraseSheet = () => {
+    if (!phrase) return;
+    e2eEvent("btn", { btn: "translate_phrase", idx: index, words: phraseWords });
     setSheetVisible(true);
-    pauseAt(current.start);
   };
 
   const handleSheetClose = () => {
     e2eEvent("btn", { btn: "sheet_close", idx: index });
     setSheetVisible(false);
+    setSelection(null);
     if (current) pauseAt(current.start);
   };
 
@@ -452,80 +562,128 @@ export function SessionScreenContent({
         ) : null}
       </View>
 
-      <Text style={styles.progress} numberOfLines={2}>
-        {title ? `${title} · ` : ""}
-        Чанк {index + 1} / {chunks.length}
-        {` · ${formatTime(current.start)}–${formatTime(playEnd)}`}
-      </Text>
+      <View style={styles.metaRow}>
+        <Text style={styles.progress} numberOfLines={1}>
+          {title ? `${title} · ` : ""}
+          {index + 1}/{chunks.length}
+          {` · ${formatTime(current.start)}–${formatTime(playEnd)}`}
+        </Text>
+        <View style={styles.metaActions}>
+          <Pressable
+            onPress={toggleChunkTranslation}
+            hitSlop={8}
+            accessibilityLabel="Показать перевод чанка"
+            style={[styles.chip, showTranslation && styles.chipActive]}
+          >
+            <Text style={[styles.chipText, showTranslation && styles.chipTextActive]}>
+              RU
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => void saveWholeChunk()}
+            hitSlop={8}
+            disabled={savingChunk}
+            accessibilityLabel="Сохранить чанк в словарь"
+            style={[styles.chip, savingChunk && styles.chipDisabled]}
+          >
+            <Text style={styles.chipText}>＋ чанк</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <TranscriptView
         chunks={chunks}
         currentIndex={index}
-        onWordPress={handleWordPress}
+        selection={selection}
+        onWordPress={handleTokenPress}
+        translation={showTranslation ? chunkRu : null}
+        translationLoading={showTranslation && chunkRuLoading}
       />
 
-      <Text style={styles.hint}>
-        Replay → слушайте → повторяйте вслух → Next
-      </Text>
+      {phrase ? (
+        <View style={styles.selectionBar}>
+          <View style={styles.selectionTextWrap}>
+            <Text style={styles.selectionPhrase} numberOfLines={1}>
+              {phrase}
+            </Text>
+            <Text style={styles.selectionHint}>
+              {phraseWords === 1
+                ? "тапни ещё слово — выделится фраза"
+                : `фраза из ${phraseWords} слов`}
+            </Text>
+          </View>
+          <Button
+            title="Перевести"
+            variant="primary"
+            onPress={openPhraseSheet}
+            style={styles.selectionBtn}
+          />
+        </View>
+      ) : (
+        <Text style={styles.hint}>
+          Replay → повторяйте вслух → тап по словам = перевод фразы
+        </Text>
+      )}
 
       <View style={styles.controls}>
-        <Pressable
-          style={[styles.ctrlBtn, index === 0 && styles.ctrlDisabled]}
+        <Button
+          title="⏮"
           onPress={() => {
             e2eEvent("btn", { btn: "prev", idx: index, ready, playing });
             goPrev();
           }}
           disabled={index === 0}
-        >
-          <Text style={styles.ctrlText}>⏮ Prev</Text>
-        </Pressable>
-        <Pressable
-          style={[styles.ctrlBtnMain, !ready && styles.ctrlDisabled]}
+          accessibilityLabel="Предыдущий чанк"
+          style={styles.ctrlSide}
+        />
+        <Button
+          title="🔁 Replay"
+          variant="primary"
           onPress={() => {
             e2eEvent("btn", { btn: "replay", idx: index, ready, playing });
             void replay();
           }}
           disabled={!ready}
           accessibilityLabel="Replay"
-        >
-          <Text style={styles.ctrlTextMain}>🔁 Replay</Text>
-        </Pressable>
-        <Pressable
-          style={[
-            styles.ctrlBtn,
-            index >= chunks.length - 1 && styles.ctrlDisabled,
-          ]}
+          style={styles.ctrlMain}
+        />
+        <Button
+          title="⏭"
           onPress={() => {
             e2eEvent("btn", { btn: "next", idx: index, ready, playing });
             goNext();
           }}
           disabled={index >= chunks.length - 1}
-        >
-          <Text style={styles.ctrlText}>Next ⏭</Text>
-        </Pressable>
+          accessibilityLabel="Следующий чанк"
+          style={styles.ctrlSide}
+        />
       </View>
 
-      <TranslationSheet
+      <PhraseSheet
         visible={sheetVisible}
-        word={selectedWord}
-        context={selectedContext}
+        phrase={phrase}
+        context={current.text}
         apiKey={geminiKey}
         sourceVideoId={videoId}
+        chunkIdx={index}
+        startSec={current.start}
+        endSec={current.end}
         onClose={handleSheetClose}
+        onReplay={() => void replay()}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f0f14" },
+  container: { flex: 1, backgroundColor: colors.bg },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#0f0f14",
+    backgroundColor: colors.bg,
   },
-  emptyText: { color: "#888", fontSize: 16 },
+  emptyText: { ...font.body, color: colors.textMuted },
   playerWrap: { position: "relative", width: "100%", backgroundColor: "#000" },
   playerPoster: {
     position: "absolute",
@@ -548,50 +706,67 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
   },
-  playerOverlayText: { color: "#aaa", fontSize: 13 },
+  playerOverlayText: { ...font.small, color: colors.textMuted },
   playerErrorText: {
-    color: "#ff6b6b",
-    fontSize: 13,
-    paddingHorizontal: 16,
+    ...font.small,
+    color: colors.danger,
+    paddingHorizontal: space.lg,
     textAlign: "center",
   },
-  progress: {
-    color: "#888",
-    fontSize: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.sm,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
   },
+  progress: { ...font.caption, color: colors.textMuted, flexShrink: 1 },
+  metaActions: { flexDirection: "row", gap: space.sm },
+  chip: {
+    paddingHorizontal: space.md,
+    paddingVertical: space.xs,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  chipActive: { backgroundColor: colors.accentSoft, borderColor: colors.accent },
+  chipDisabled: { opacity: 0.4 },
+  chipText: { ...font.caption, color: colors.textMuted, fontWeight: "700" },
+  chipTextActive: { color: colors.accent },
   hint: {
-    color: "#666",
-    fontSize: 12,
+    ...font.caption,
+    color: colors.textFaint,
     textAlign: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 4,
+    paddingHorizontal: space.lg,
+    paddingVertical: space.sm,
   },
+  selectionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    marginHorizontal: space.lg,
+    marginVertical: space.sm,
+    padding: space.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  selectionTextWrap: { flex: 1, gap: 2 },
+  selectionPhrase: { ...font.body, color: colors.text, fontWeight: "600" },
+  selectionHint: { ...font.caption, color: colors.textFaint },
+  selectionBtn: { paddingHorizontal: space.lg },
   controls: {
     flexDirection: "row",
-    padding: 16,
-    gap: 8,
+    padding: space.lg,
+    gap: space.sm,
     borderTopWidth: 1,
-    borderTopColor: "#2a2a3a",
+    borderTopColor: colors.border,
   },
-  ctrlBtn: {
-    flex: 1,
-    backgroundColor: "#1a1a24",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  ctrlBtnMain: {
-    flex: 1.2,
-    backgroundColor: "#4361ee",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-  },
-  ctrlDisabled: { opacity: 0.35 },
-  ctrlText: { color: "#fff", fontWeight: "600" },
-  ctrlTextMain: { color: "#fff", fontWeight: "700" },
+  ctrlSide: { flex: 1 },
+  ctrlMain: { flex: 2 },
   e2eBanner: {
     backgroundColor: "#1a3a1a",
     borderBottomWidth: 2,

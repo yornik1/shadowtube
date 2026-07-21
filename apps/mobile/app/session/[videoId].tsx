@@ -10,8 +10,19 @@ import {
 import { getSession, updateSessionProgress } from "@/src/db/repos/sessions";
 import type { Chunk } from "@shadowtube/shared";
 
+/** `?chunk=N` — прыжок из карточки повторения в тот самый момент видео. */
+function parseChunkParam(raw: string | string[] | undefined): number | null {
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value == null) return null;
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
 export default function SessionScreen() {
-  const { videoId } = useLocalSearchParams<{ videoId: string }>();
+  const { videoId, chunk } = useLocalSearchParams<{
+    videoId: string;
+    chunk?: string;
+  }>();
   const [chunks, setChunks] = useState<Chunk[]>([]);
   const [index, setIndex] = useState(0);
   const [title, setTitle] = useState("");
@@ -33,12 +44,13 @@ export default function SessionScreen() {
         text: r.text,
       }));
       setChunks(mapped);
-      const startIdx = session?.lastChunkIdx ?? 0;
+      // Явный ?chunk важнее сохранённого прогресса — человек пришёл за фразой.
+      const startIdx = parseChunkParam(chunk) ?? session?.lastChunkIdx ?? 0;
       setIndex(Math.min(startIdx, Math.max(0, mapped.length - 1)));
       await touchVideo(videoId);
       setLoading(false);
     })();
-  }, [videoId]);
+  }, [videoId, chunk]);
 
   useEffect(() => {
     if (!videoId || chunks.length === 0) return;

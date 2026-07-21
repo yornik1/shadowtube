@@ -8,26 +8,31 @@ import {
   StyleSheet,
   Alert,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   listVocabulary,
   deleteVocabulary,
+  type VocabularyRow,
 } from "@/src/db/repos/vocabulary";
-
-type VocabRow = Awaited<ReturnType<typeof listVocabulary>>[number];
+import { useDueStore, refreshDueCount } from "@/src/srs/dueStore";
+import { formatDue } from "@/src/srs/sm2";
+import { Badge, Button, EmptyState } from "@/src/ui/components";
+import { toast } from "@/src/ui/toast";
+import { colors, font, radius, space } from "@/src/ui/theme";
 
 export default function VocabularyScreen() {
-  const [items, setItems] = useState<VocabRow[]>([]);
+  const [items, setItems] = useState<VocabularyRow[]>([]);
   const [search, setSearch] = useState("");
+  const dueCount = useDueStore((s) => s.count);
 
   const load = useCallback(async () => {
-    const rows = await listVocabulary(search);
-    setItems(rows);
+    setItems(await listVocabulary(search));
+    refreshDueCount();
   }, [search]);
 
   useFocusEffect(
     useCallback(() => {
-      load();
+      void load();
     }, [load]),
   );
 
@@ -36,15 +41,16 @@ export default function VocabularyScreen() {
     return () => clearTimeout(t);
   }, [search, load]);
 
-  const handleDelete = (id: number, word: string) => {
-    Alert.alert("Удалить?", `"${word}"`, [
+  const handleDelete = (item: VocabularyRow) => {
+    Alert.alert("Удалить из словаря?", `«${item.word}»`, [
       { text: "Отмена", style: "cancel" },
       {
         text: "Удалить",
         style: "destructive",
         onPress: async () => {
-          await deleteVocabulary(id);
-          load();
+          await deleteVocabulary(item.id);
+          toast.info("Удалено");
+          void load();
         },
       },
     ]);
@@ -52,34 +58,73 @@ export default function VocabularyScreen() {
 
   return (
     <View style={styles.container}>
+      {dueCount > 0 ? (
+        <Button
+          title={`🔥 Повторить ${dueCount}`}
+          variant="primary"
+          onPress={() => router.push("/(tabs)/review")}
+          style={styles.reviewBtn}
+        />
+      ) : null}
+
       <TextInput
         style={styles.search}
-        placeholder="Поиск..."
-        placeholderTextColor="#666"
+        placeholder="Поиск по фразе, переводу, контексту"
+        placeholderTextColor={colors.textFaint}
         value={search}
         onChangeText={setSearch}
         onSubmitEditing={load}
       />
+
       <FlatList
         data={items}
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={styles.list}
+        keyboardShouldPersistTaps="handled"
         ListEmptyComponent={
-          <Text style={styles.empty}>
-            Словарь пуст. Тапните на слово во время сессии.
-          </Text>
+          search ? (
+            <EmptyState emoji="🔍" title="Ничего не найдено" />
+          ) : (
+            <EmptyState
+              emoji="📖"
+              title="Словарь пуст"
+              hint="Во время сессии тапните по слову, вторым тапом растяните выделение на фразу — и сохраните."
+            />
+          )
         }
         renderItem={({ item }) => (
           <Pressable
-            style={styles.row}
-            onLongPress={() => handleDelete(item.id, item.word)}
+            style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+            onLongPress={() => handleDelete(item)}
+            delayLongPress={400}
           >
-            <Text style={styles.word}>{item.word}</Text>
+            <View style={styles.rowHeader}>
+              <Text style={styles.word}>{item.word}</Text>
+              {item.kind === "chunk" ? (
+                <Badge label="чанк" color={colors.textFaint} />
+              ) : null}
+            </View>
+
             <Text style={styles.translation}>{item.translation}</Text>
-            <Text style={styles.context} numberOfLines={2}>
-              {item.context}
-            </Text>
-            <Text style={styles.hint}>Долгое нажатие — удалить</Text>
+
+            {item.definitionEn ? (
+              <Text style={styles.definition} numberOfLines={2}>
+                {item.definitionEn}
+              </Text>
+            ) : null}
+
+            {item.context && item.context !== item.word ? (
+              <Text style={styles.context} numberOfLines={2}>
+                {item.context}
+              </Text>
+            ) : null}
+
+            <View style={styles.footer}>
+              <Text style={styles.due}>{formatDue(item.dueAt)}</Text>
+              {item.reps > 0 ? (
+                <Text style={styles.reps}>· повторов: {item.reps}</Text>
+              ) : null}
+            </View>
           </Pressable>
         )}
       />
@@ -88,26 +133,43 @@ export default function VocabularyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0f0f14" },
+  container: { flex: 1, backgroundColor: colors.bg },
+  reviewBtn: { marginHorizontal: space.lg, marginTop: space.md },
   search: {
-    margin: 16,
-    backgroundColor: "#1a1a24",
-    borderRadius: 10,
-    padding: 12,
-    color: "#fff",
+    marginHorizontal: space.lg,
+    marginTop: space.md,
+    marginBottom: space.sm,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    paddingHorizontal: space.md,
+    paddingVertical: space.md,
+    color: colors.text,
     borderWidth: 1,
-    borderColor: "#2a2a3a",
+    borderColor: colors.border,
+    ...font.small,
   },
-  list: { paddingHorizontal: 16, paddingBottom: 24 },
-  empty: { color: "#666", textAlign: "center", marginTop: 40 },
+  list: { paddingHorizontal: space.lg, paddingBottom: space.xl },
   row: {
-    backgroundColor: "#1a1a24",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.lg,
+    marginBottom: space.md,
+    gap: space.xs,
   },
-  word: { fontSize: 18, fontWeight: "700", color: "#7eb8ff" },
-  translation: { fontSize: 16, color: "#fff", marginTop: 4 },
-  context: { fontSize: 13, color: "#888", marginTop: 6 },
-  hint: { fontSize: 11, color: "#555", marginTop: 8 },
+  rowPressed: { backgroundColor: colors.surfaceRaised },
+  rowHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space.sm,
+  },
+  word: { ...font.body, color: colors.accent, fontWeight: "700", flexShrink: 1 },
+  translation: { ...font.body, color: colors.text },
+  definition: { ...font.small, color: colors.textMuted, fontStyle: "italic" },
+  context: { ...font.caption, color: colors.textFaint },
+  footer: { flexDirection: "row", gap: space.xs, marginTop: space.xs },
+  due: { ...font.caption, color: colors.textFaint },
+  reps: { ...font.caption, color: colors.textFaint },
 });

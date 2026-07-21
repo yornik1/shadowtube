@@ -23,6 +23,7 @@
     "expo-font": "~56.0.6",
     "expo-linking": "~56.0.14",
     "expo-modules-core": "~56.0.16",
+    "expo-notifications": "~56.0.21",
     "expo-router": "~56.2.10",
     "expo-secure-store": "~56.0.4",
     "expo-splash-screen": "~56.0.10",

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -18,6 +18,22 @@ import {
   buildProxyCandidates,
   getConfiguredProxyUrl,
 } from "@/src/api/proxyConfig";
+import { FAKE_PREFIX, isFakeGemini } from "@/src/api/geminiFake";
+import { CARD_MODES } from "@/src/srs/cardModes";
+import { DEFAULT_DAILY_GOAL } from "@/src/srs/streak";
+import {
+  DEFAULT_REMINDER_HOUR,
+  cancelDailyReminder,
+  hasDailyReminder,
+  notificationsAvailable,
+  scheduleDailyReminder,
+} from "@/src/srs/notifications";
+import {
+  applyUpdate,
+  checkAndDownload,
+  currentUpdateInfo,
+} from "@/src/updates/otaUpdates";
+import { toast } from "@/src/ui/toast";
 
 export default function SettingsScreen() {
   const {
@@ -31,10 +47,51 @@ export default function SettingsScreen() {
     clearProxyUrl,
     availableModels,
     setAvailableModels,
+    cardMode,
+    saveCardMode,
   } = useSettingsStore();
   const [draft, setDraft] = useState("");
   const [proxyDraft, setProxyDraft] = useState(proxyUrlOverride ?? "");
   const [testing, setTesting] = useState(false);
+  const [reminderOn, setReminderOn] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
+  const updateInfo = currentUpdateInfo();
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    const result = await checkAndDownload();
+    setCheckingUpdate(false);
+    setUpdateReady(result === "downloaded");
+
+    const message: Record<typeof result, string> = {
+      downloaded: "Обновление загружено — перезапустите приложение",
+      "up-to-date": "Уже последняя версия",
+      unavailable: "OTA доступен только в собранном APK",
+      error: "Не удалось проверить обновление",
+    };
+    toast[result === "error" ? "error" : "info"](message[result]);
+  };
+
+  useEffect(() => {
+    void hasDailyReminder().then(setReminderOn);
+  }, []);
+
+  const toggleReminder = async () => {
+    if (reminderOn) {
+      await cancelDailyReminder();
+      setReminderOn(false);
+      toast.info("Напоминание выключено");
+      return;
+    }
+    const ok = await scheduleDailyReminder(DEFAULT_REMINDER_HOUR);
+    setReminderOn(ok);
+    toast[ok ? "success" : "error"](
+      ok
+        ? `Напоминание в ${DEFAULT_REMINDER_HOUR}:00`
+        : "Не удалось включить — нет разрешения",
+    );
+  };
 
   const configuredProxyUrl = getConfiguredProxyUrl();
   const proxyCandidates = buildProxyCandidates({
@@ -119,7 +176,67 @@ export default function SettingsScreen() {
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.label}>Gemini API Key (BYOK)</Text>
+        {isFakeGemini() ? (
+          <View style={styles.fakeBanner}>
+            <Text style={styles.fakeBannerText}>
+              Режим фейкового перевода (EXPO_PUBLIC_FAKE_GEMINI=1). Gemini не
+              вызывается, переводы помечены «{FAKE_PREFIX}».
+            </Text>
+          </View>
+        ) : null}
+
+        <Text style={styles.label}>Карточки повторения</Text>
+        <Text style={styles.hint}>
+          Норма — {DEFAULT_DAILY_GOAL} карточек в день. Интервалы общие: режим
+          меняет только то, что показано на лицевой стороне.
+        </Text>
+        <View style={styles.chips}>
+          {CARD_MODES.map((m) => {
+            const active = cardMode === m.id;
+            return (
+              <Pressable
+                key={m.id}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => saveCardMode(m.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipTitle, active && styles.chipTextActive]}>
+                  {active ? "✓ " : ""}
+                  {m.title}
+                </Text>
+                <Text style={styles.chipHint}>{m.hint}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Напоминание</Text>
+          {notificationsAvailable() ? (
+            <>
+              <Text style={styles.hint}>
+                Раз в день в {DEFAULT_REMINDER_HOUR}:00, если есть что повторять.
+              </Text>
+              <Pressable
+                style={[styles.btn, reminderOn && styles.btnSecondary]}
+                onPress={toggleReminder}
+              >
+                <Text style={styles.btnText}>
+                  {reminderOn ? "Выключить напоминание" : "Включить напоминание"}
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <Text style={styles.hintSmall}>
+              В Expo Go уведомления на Android недоступны (ограничение SDK 53+).
+              Работают в собранном APK: pnpm build:apk:preview
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Gemini API Key (BYOK)</Text>
         <Text style={styles.hint}>Бесплатный ключ в Google AI Studio</Text>
         <Pressable onPress={() => Linking.openURL("https://aistudio.google.com/apikey")}>
           <Text style={styles.link}>Открыть Google AI Studio →</Text>
@@ -140,17 +257,18 @@ export default function SettingsScreen() {
           <Text style={styles.btnText}>Сохранить ключ</Text>
         </Pressable>
 
-        <Pressable
-          style={[styles.btn, styles.btnSecondary]}
-          onPress={handleTest}
-          disabled={testing}
-        >
-          {testing ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnText}>Проверить ключ и загрузить модели</Text>
-          )}
-        </Pressable>
+          <Pressable
+            style={[styles.btn, styles.btnSecondary]}
+            onPress={handleTest}
+            disabled={testing}
+          >
+            {testing ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnText}>Проверить ключ и загрузить модели</Text>
+            )}
+          </Pressable>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.label}>Модель для перевода</Text>
@@ -207,6 +325,40 @@ export default function SettingsScreen() {
         </View>
 
         <View style={styles.section}>
+          <Text style={styles.label}>Обновления</Text>
+          {updateInfo.enabled ? (
+            <>
+              <Text style={styles.hint}>
+                Канал {updateInfo.channel} · версия {updateInfo.runtimeVersion}
+                {updateInfo.updateId
+                  ? `\nOTA-ревизия: ${updateInfo.updateId.slice(0, 8)}`
+                  : "\nРаботает версия из APK"}
+              </Text>
+              <Pressable style={styles.btn} onPress={handleCheckUpdate} disabled={checkingUpdate}>
+                {checkingUpdate ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.btnText}>Проверить обновление</Text>
+                )}
+              </Pressable>
+              {updateReady ? (
+                <Pressable
+                  style={[styles.btn, styles.btnSecondary]}
+                  onPress={() => void applyUpdate()}
+                >
+                  <Text style={styles.btnText}>Перезапустить с обновлением</Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
+            <Text style={styles.hintSmall}>
+              OTA работает только в собранном APK. В Expo Go код приезжает через
+              Metro.
+            </Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
           <Text style={styles.label}>Языки (MVP)</Text>
           <Text style={styles.hint}>English → Russian</Text>
         </View>
@@ -258,4 +410,14 @@ const styles = StyleSheet.create({
   chipTitle: { color: "#ccc", fontSize: 14, fontWeight: "500" },
   chipTextActive: { color: "#fff", fontWeight: "700" },
   chipId: { color: "#666", fontSize: 11, marginTop: 4, fontFamily: "monospace" },
+  chipHint: { color: "#888", fontSize: 12, marginTop: 4, lineHeight: 16 },
+  fakeBanner: {
+    backgroundColor: "#3a2a0a",
+    borderWidth: 1,
+    borderColor: "#fbbf24",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 20,
+  },
+  fakeBannerText: { color: "#fbbf24", fontSize: 12, lineHeight: 17 },
 });

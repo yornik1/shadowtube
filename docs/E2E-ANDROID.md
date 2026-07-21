@@ -144,6 +144,26 @@ Deep link (adb) — Metro host = **LAN IP Mac**, не `10.0.2.2`:
 pnpm e2e:pause:open
 ```
 
+## 4a. События фраз и повторений
+
+Кроме pause-on-end через `/log/tail` видно весь новый цикл:
+
+| Событие | Когда |
+|---------|-------|
+| `select` | тап по слову; `selected:false` — выделение снято |
+| `translate_phrase` | нажата «Перевести», в `words` — размер фразы |
+| `chunk_ru` / `save_chunk` | тумблер RU / «＋ чанк» |
+| `review_open` | открыта вкладка повторений, в `due` — размер очереди |
+| `review_show_answer`, `review_grade`, `review_done` | ход повторения |
+
+```bash
+curl -s http://localhost:8787/log/tail | grep -E 'select|review_'
+```
+
+Перевод требует **своего ключа Gemini** (BYOK, Настройки) — без него
+`PhraseSheet` честно показывает «Добавьте Gemini API key», а не падает.
+Уведомления в Expo Go недоступны, только в APK — см. [SRS.md](./SRS.md).
+
 ## 5. Unit-тесты watcher (без устройства)
 
 ```bash

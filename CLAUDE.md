@@ -17,6 +17,10 @@
 |--------|------|
 | Ввод URL, история | `apps/mobile/app/(tabs)/index.tsx` |
 | Сессия, плеер | `apps/mobile/app/session/[videoId].tsx` |
+| Выделение фразы | `apps/mobile/src/session/spanSelection.ts` |
+| Промпты перевода | `apps/mobile/src/api/geminiPrompts.ts` |
+| Повторения (SM-2, цепочка) | `apps/mobile/src/srs/*`, `app/(tabs)/review.tsx` — см. [docs/SRS.md](./docs/SRS.md) |
+| Дизайн-токены, тосты | `apps/mobile/src/ui/*` |
 | Субтитры с YouTube | `apps/proxy/src/node-server.ts` |
 | API-контракты типов | `packages/shared/src/types.ts` |
 | Gemini BYOK | `apps/mobile/src/api/gemini.ts`, `app/(tabs)/settings.tsx` |

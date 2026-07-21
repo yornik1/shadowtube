@@ -66,6 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-router",
       "expo-sqlite",
       "expo-secure-store",
+      "expo-notifications",
       "expo-font",
       "expo-splash-screen",
       "./plugins/withCleartextTraffic",

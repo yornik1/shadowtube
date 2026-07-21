@@ -1,73 +1,80 @@
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import { useMemo } from "react";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import type { Chunk } from "@shadowtube/shared";
+import {
+  isSelected,
+  nearestWordIndex,
+  tokenize,
+  type Selection,
+} from "@/src/session/spanSelection";
+import { colors, font, radius, space } from "@/src/ui/theme";
 
 type Props = {
   chunks: Chunk[];
   currentIndex: number;
-  onWordPress: (word: string, context: string) => void;
+  /** Выделение внутри активного чанка (индексы токенов). */
+  selection: Selection | null;
+  onWordPress: (tokenIndex: number) => void;
+  /** Русский перевод активного чанка — показывается по кнопке «RU». */
+  translation?: string | null;
+  translationLoading?: boolean;
 };
 
-function tokenize(text: string): { type: "word" | "space"; value: string }[] {
-  const tokens: { type: "word" | "space"; value: string }[] = [];
-  const parts = text.split(/(\s+)/);
-  for (const p of parts) {
-    if (!p) continue;
-    if (/^\s+$/.test(p)) tokens.push({ type: "space", value: p });
-    else tokens.push({ type: "word", value: p });
-  }
-  return tokens;
+/** Соседний чанк: только контекст, тапать нечего — меньше промахов. */
+function NeighborChunk({ chunk }: { chunk: Chunk }) {
+  return (
+    <Text style={styles.neighbor} numberOfLines={2}>
+      {chunk.text}
+    </Text>
+  );
 }
 
-function ChunkBlock({
+function ActiveChunk({
   chunk,
-  active,
-  dim,
+  selection,
   onWordPress,
 }: {
   chunk: Chunk;
-  active: boolean;
-  dim: boolean;
-  onWordPress: (word: string, context: string) => void;
+  selection: Selection | null;
+  onWordPress: (tokenIndex: number) => void;
 }) {
-  const tokens = tokenize(chunk.text);
-  const body = (
-    <Text
-      style={[
-        styles.chunkText,
-        active && styles.activeText,
-        dim && styles.dimText,
-      ]}
-    >
-      {tokens.map((t, i) =>
-        t.type === "word" ? (
-          <Text
-            key={i}
-            onPress={() => onWordPress(t.value.replace(/[^\w'-]/g, ""), chunk.text)}
-            style={active ? styles.tappable : styles.tappableDim}
-          >
-            {t.value}
-          </Text>
-        ) : (
-          <Text key={i}>{t.value}</Text>
-        ),
-      )}
-    </Text>
-  );
+  const tokens = useMemo(() => tokenize(chunk.text), [chunk.text]);
 
   return (
-    <View style={[styles.chunk, dim && styles.dim, active && styles.active]}>
-      {active ? (
-        <ScrollView style={styles.activeScroll} nestedScrollEnabled>
-          {body}
-        </ScrollView>
-      ) : (
-        body
-      )}
-    </View>
+    <Text style={styles.activeText}>
+      {tokens.map((t) => (
+        // Пробелы тоже кликабельны и отдаются соседнему слову — иначе тап
+        // «мимо буквы» выглядит как зависшее приложение.
+        <Text
+          key={t.index}
+          onPress={() => {
+            const target = nearestWordIndex(tokens, t.index);
+            if (target != null) onWordPress(target);
+          }}
+          suppressHighlighting
+          style={
+            isSelected(selection, t.index)
+              ? styles.wordSelected
+              : t.type === "word"
+                ? styles.word
+                : undefined
+          }
+        >
+          {t.value}
+        </Text>
+      ))}
+    </Text>
   );
 }
 
-export function TranscriptView({ chunks, currentIndex, onWordPress }: Props) {
+export function TranscriptView({
+  chunks,
+  currentIndex,
+  selection,
+  onWordPress,
+  translation,
+  translationLoading = false,
+}: Props) {
   const prev = chunks[currentIndex - 1];
   const current = chunks[currentIndex];
   const next = chunks[currentIndex + 1];
@@ -82,18 +89,27 @@ export function TranscriptView({ chunks, currentIndex, onWordPress }: Props) {
 
   return (
     <View style={styles.container}>
-      {prev && (
-        <ChunkBlock chunk={prev} active={false} dim onWordPress={onWordPress} />
-      )}
-      <ChunkBlock
-        chunk={current}
-        active
-        dim={false}
-        onWordPress={onWordPress}
-      />
-      {next && (
-        <ChunkBlock chunk={next} active={false} dim onWordPress={onWordPress} />
-      )}
+      {prev ? <NeighborChunk chunk={prev} /> : null}
+
+      <View style={styles.activeCard}>
+        <ScrollView style={styles.activeScroll} nestedScrollEnabled>
+          <ActiveChunk
+            chunk={current}
+            selection={selection}
+            onWordPress={onWordPress}
+          />
+
+          {translationLoading ? (
+            <Text style={styles.translationPending}>перевод…</Text>
+          ) : translation ? (
+            <View style={styles.translationBox}>
+              <Text style={styles.translation}>{translation}</Text>
+            </View>
+          ) : null}
+        </ScrollView>
+      </View>
+
+      {next ? <NeighborChunk chunk={next} /> : null}
     </View>
   );
 }
@@ -102,22 +118,42 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 16,
-    gap: 12,
+    paddingHorizontal: space.lg,
+    gap: space.md,
   },
-  chunk: { paddingVertical: 8 },
-  active: {
-    backgroundColor: "#1a1a2e",
-    borderRadius: 12,
-    padding: 16,
-    maxHeight: 220,
+  neighbor: {
+    ...font.small,
+    color: colors.textFaint,
+    textAlign: "center",
+  },
+  activeCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: space.lg,
+    maxHeight: 260,
   },
   activeScroll: { flexGrow: 0 },
-  dim: { opacity: 0.45 },
-  chunkText: { fontSize: 16, lineHeight: 26, color: "#888" },
-  activeText: { fontSize: 22, lineHeight: 32, color: "#fff" },
-  dimText: { fontSize: 14 },
-  tappable: { color: "#7eb8ff", textDecorationLine: "underline" },
-  tappableDim: { color: "#5a7a99" },
-  empty: { color: "#666", textAlign: "center" },
+  activeText: { ...font.display, color: colors.text },
+  word: { color: colors.text },
+  /** Выделение подсвечивается фоном — подчёркивание на каждом слове рябит. */
+  wordSelected: {
+    color: colors.accent,
+    backgroundColor: colors.accentSoft,
+  },
+  translationBox: {
+    marginTop: space.md,
+    paddingTop: space.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  translation: { ...font.body, color: colors.textMuted },
+  translationPending: {
+    ...font.small,
+    color: colors.textFaint,
+    marginTop: space.md,
+    fontStyle: "italic",
+  },
+  empty: { ...font.body, color: colors.textFaint, textAlign: "center" },
 });

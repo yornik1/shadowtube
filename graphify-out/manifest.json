@@ -1,0 +1,587 @@
+{
+  "/Users/mich/PycharmProjects/shadowtube/.claude/settings.local.json": {
+    "mtime": 1781124090.8574998,
+    "ast_hash": "46fb452ead1ddbd9690780b6207701e5",
+    "semantic_hash": "46fb452ead1ddbd9690780b6207701e5"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/.omx/metrics.json": {
+    "mtime": 1781287840.0124142,
+    "ast_hash": "47a72fd0a012766fa37e17b88c719858",
+    "semantic_hash": "47a72fd0a012766fa37e17b88c719858"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/.omx/state/update-check.json": {
+    "mtime": 1781267763.6925848,
+    "ast_hash": "c3fa999936b8cd77eb0f44e10c59a3f7",
+    "semantic_hash": "c3fa999936b8cd77eb0f44e10c59a3f7"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/.claude/settings.json": {
+    "mtime": 1779474493.3660197,
+    "ast_hash": "dc580fca35a0e98ed20777ede5e545a1",
+    "semantic_hash": "dc580fca35a0e98ed20777ede5e545a1"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/.vscode/extensions.json": {
+    "mtime": 1779474469.177117,
+    "ast_hash": "b2354ba0225f5689d13651ec0fac0de0",
+    "semantic_hash": "b2354ba0225f5689d13651ec0fac0de0"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/.vscode/settings.json": {
+    "mtime": 1779474469.1774528,
+    "ast_hash": "6b9302c1f72c315e90233c7539c48c9f",
+    "semantic_hash": "6b9302c1f72c315e90233c7539c48c9f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/app/build.gradle": {
+    "mtime": 1781425481.2818482,
+    "ast_hash": "cbf88fe3963fb90de4ffdf0656a3bd36",
+    "semantic_hash": "cbf88fe3963fb90de4ffdf0656a3bd36"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/app/src/main/java/com/shadowtube/app/MainActivity.kt": {
+    "mtime": 1781278565.2871773,
+    "ast_hash": "f79cd7415fa062d7a1c1c71761313be0",
+    "semantic_hash": "f79cd7415fa062d7a1c1c71761313be0"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/app/src/main/java/com/shadowtube/app/MainApplication.kt": {
+    "mtime": 1781278565.287091,
+    "ast_hash": "778d8a648e1ae9c400c43956e22a794c",
+    "semantic_hash": "778d8a648e1ae9c400c43956e22a794c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/build.gradle": {
+    "mtime": 1781425481.2813244,
+    "ast_hash": "55cec08c744fbe7b1f1294009fe3f65d",
+    "semantic_hash": "55cec08c744fbe7b1f1294009fe3f65d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/gradlew": {
+    "mtime": 1781278565.1740441,
+    "ast_hash": "780b1d3e23a3b82154795f73df943a14",
+    "semantic_hash": "780b1d3e23a3b82154795f73df943a14"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/android/settings.gradle": {
+    "mtime": 1781425481.2811537,
+    "ast_hash": "42ecac639ddd3a46ad64ccc82177928f",
+    "semantic_hash": "42ecac639ddd3a46ad64ccc82177928f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app.config.ts": {
+    "mtime": 1781277676.4040174,
+    "ast_hash": "2dfa3930e944e0ab14a71d2cb462f822",
+    "semantic_hash": "2dfa3930e944e0ab14a71d2cb462f822"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app.json": {
+    "mtime": 1781180085.6739004,
+    "ast_hash": "98cea9811ccd82241874d1a9e6a0ec7d",
+    "semantic_hash": "98cea9811ccd82241874d1a9e6a0ec7d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/_layout.tsx": {
+    "mtime": 1779533114.1251116,
+    "ast_hash": "cc8aed269ad323740d0aa246f7fd3c60",
+    "semantic_hash": "cc8aed269ad323740d0aa246f7fd3c60"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/home.tsx": {
+    "mtime": 1781162459.8854303,
+    "ast_hash": "5d87fef2c0577cff8e94693a5c59b00c",
+    "semantic_hash": "5d87fef2c0577cff8e94693a5c59b00c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/home.web.tsx": {
+    "mtime": 1779530367.0735652,
+    "ast_hash": "9f44348e97043744d67829c0c0d9600b",
+    "semantic_hash": "9f44348e97043744d67829c0c0d9600b"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/index.tsx": {
+    "mtime": 1779527274.423004,
+    "ast_hash": "5d5dc79d91e944315d2f52b09aa888d8",
+    "semantic_hash": "5d5dc79d91e944315d2f52b09aa888d8"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/index.web.tsx": {
+    "mtime": 1779526773.4320998,
+    "ast_hash": "99965e5a65898afa05911e6355c6dcf4",
+    "semantic_hash": "99965e5a65898afa05911e6355c6dcf4"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/settings.tsx": {
+    "mtime": 1781271331.9068518,
+    "ast_hash": "c8f6573db280763b0a133532d7b602c9",
+    "semantic_hash": "c8f6573db280763b0a133532d7b602c9"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/settings.web.tsx": {
+    "mtime": 1779526774.6520576,
+    "ast_hash": "0a7ce893672abb76bda96cbad827d87f",
+    "semantic_hash": "0a7ce893672abb76bda96cbad827d87f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/vocabulary.tsx": {
+    "mtime": 1779475217.0135095,
+    "ast_hash": "5c9d59b75b766456e0b41be19c72f702",
+    "semantic_hash": "5c9d59b75b766456e0b41be19c72f702"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/(tabs)/vocabulary.web.tsx": {
+    "mtime": 1779526774.0867195,
+    "ast_hash": "fbc7a1be8400fd6cee5fbba4e2f3a134",
+    "semantic_hash": "fbc7a1be8400fd6cee5fbba4e2f3a134"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/+html.tsx": {
+    "mtime": 1779474469.1833346,
+    "ast_hash": "ba92d7deb21b50212f47548e6d9de1bf",
+    "semantic_hash": "ba92d7deb21b50212f47548e6d9de1bf"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/+not-found.tsx": {
+    "mtime": 1779474469.183496,
+    "ast_hash": "38550dbc30757ea8dc43a4601c2b1d4f",
+    "semantic_hash": "38550dbc30757ea8dc43a4601c2b1d4f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/_layout.tsx": {
+    "mtime": 1781162459.8856301,
+    "ast_hash": "c4738e79f0faf6892cce1c78a58fefcb",
+    "semantic_hash": "c4738e79f0faf6892cce1c78a58fefcb"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/_layout.web.tsx": {
+    "mtime": 1779526772.7789996,
+    "ast_hash": "2df433facc6d758a2118be022f91a42e",
+    "semantic_hash": "2df433facc6d758a2118be022f91a42e"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/dev/pause-test.tsx": {
+    "mtime": 1781157828.9211273,
+    "ast_hash": "a4d0350146cfa156716af835a0954fcd",
+    "semantic_hash": "a4d0350146cfa156716af835a0954fcd"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/modal.tsx": {
+    "mtime": 1779474469.1839705,
+    "ast_hash": "e621c49637832d1848fe4b8fc7007ad0",
+    "semantic_hash": "e621c49637832d1848fe4b8fc7007ad0"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/session/[videoId].tsx": {
+    "mtime": 1781162459.885879,
+    "ast_hash": "4f2ad49b87b88cec4f04a670c2d4c488",
+    "semantic_hash": "4f2ad49b87b88cec4f04a670c2d4c488"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/app/session/[videoId].web.tsx": {
+    "mtime": 1779526775.3498745,
+    "ast_hash": "59c948063e8811af998917d071e42d46",
+    "semantic_hash": "59c948063e8811af998917d071e42d46"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/babel.config.js": {
+    "mtime": 1779527077.3937008,
+    "ast_hash": "f53ba4860b4388a29b68e46c837899bc",
+    "semantic_hash": "f53ba4860b4388a29b68e46c837899bc"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/EditScreenInfo.tsx": {
+    "mtime": 1779474469.1836143,
+    "ast_hash": "4613a7ecc331b0245aefdf8d53ebf15d",
+    "semantic_hash": "4613a7ecc331b0245aefdf8d53ebf15d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/ExternalLink.tsx": {
+    "mtime": 1779528292.9803338,
+    "ast_hash": "98f3636f59526cdf6d563da0f796b925",
+    "semantic_hash": "98f3636f59526cdf6d563da0f796b925"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/StyledText.tsx": {
+    "mtime": 1779474469.1840897,
+    "ast_hash": "c50b6e360fa81e992b0edb46473bfbb4",
+    "semantic_hash": "c50b6e360fa81e992b0edb46473bfbb4"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/Themed.tsx": {
+    "mtime": 1779474469.1841986,
+    "ast_hash": "9a69f3708c9e39750191329118910a98",
+    "semantic_hash": "9a69f3708c9e39750191329118910a98"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/useClientOnlyValue.ts": {
+    "mtime": 1779474469.182373,
+    "ast_hash": "1cac2ad5842f4258c04fde5f72d99a06",
+    "semantic_hash": "1cac2ad5842f4258c04fde5f72d99a06"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/useClientOnlyValue.web.ts": {
+    "mtime": 1779474469.1825192,
+    "ast_hash": "9f45f54dd9bed76850face8311d87f69",
+    "semantic_hash": "9f45f54dd9bed76850face8311d87f69"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/useColorScheme.ts": {
+    "mtime": 1779474469.1826916,
+    "ast_hash": "44ff1a785a7e3f0ab399cb1d1c12236f",
+    "semantic_hash": "44ff1a785a7e3f0ab399cb1d1c12236f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/components/useColorScheme.web.ts": {
+    "mtime": 1779474469.18282,
+    "ast_hash": "114ae1ab68038f77c94c9353ba8f706f",
+    "semantic_hash": "114ae1ab68038f77c94c9353ba8f706f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/constants/Colors.ts": {
+    "mtime": 1779474469.1821997,
+    "ast_hash": "ddcdf7a328bf16f1d8b6302dd4719716",
+    "semantic_hash": "ddcdf7a328bf16f1d8b6302dd4719716"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/eas.json": {
+    "mtime": 1781277676.4042656,
+    "ast_hash": "ad14cd940bc80078a8a665ad27751789",
+    "semantic_hash": "ad14cd940bc80078a8a665ad27751789"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/expo-env.d.ts": {
+    "mtime": 1781176692.1654828,
+    "ast_hash": "0dd9dccdb4b08595bc83df70d6a154d3",
+    "semantic_hash": "0dd9dccdb4b08595bc83df70d6a154d3"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/metro.config.js": {
+    "mtime": 1781176506.710577,
+    "ast_hash": "7cd46a797c64379953e42f6b12907d72",
+    "semantic_hash": "7cd46a797c64379953e42f6b12907d72"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/package.json": {
+    "mtime": 1781277636.0937583,
+    "ast_hash": "e0616526add4098a15925428c1cd0449",
+    "semantic_hash": "e0616526add4098a15925428c1cd0449"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/plugins/withCleartextTraffic.js": {
+    "mtime": 1781268745.2877374,
+    "ast_hash": "3fe83f497fca25f34e73b62edc731e3d",
+    "semantic_hash": "3fe83f497fca25f34e73b62edc731e3d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/__tests__/integration/flow.test.ts": {
+    "mtime": 1779528224.1462753,
+    "ast_hash": "500473d101378523fdced9181c535b6d",
+    "semantic_hash": "500473d101378523fdced9181c535b6d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/gemini.test.ts": {
+    "mtime": 1781431063.4115274,
+    "ast_hash": "84a6c4bd437209cbf5ca2a3b7a85795c",
+    "semantic_hash": "84a6c4bd437209cbf5ca2a3b7a85795c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/gemini.ts": {
+    "mtime": 1781431089.9561996,
+    "ast_hash": "889b6d9f493e67cd395f4ec08b1d60df",
+    "semantic_hash": "889b6d9f493e67cd395f4ec08b1d60df"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/proxyConfig.test.ts": {
+    "mtime": 1781271344.9143825,
+    "ast_hash": "b243febcd0fa5bd3cac2f3b843e99933",
+    "semantic_hash": "b243febcd0fa5bd3cac2f3b843e99933"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/proxyConfig.ts": {
+    "mtime": 1781277676.4044156,
+    "ast_hash": "2e659598cac360c7f93070e4302d42f4",
+    "semantic_hash": "2e659598cac360c7f93070e4302d42f4"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/transcript.test.ts": {
+    "mtime": 1781424543.3801756,
+    "ast_hash": "94d33851c997e2612e2daa9dd334f766",
+    "semantic_hash": "94d33851c997e2612e2daa9dd334f766"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/transcript.ts": {
+    "mtime": 1781425256.33647,
+    "ast_hash": "b04aab12f0bc9bff3c7c264803158d5f",
+    "semantic_hash": "b04aab12f0bc9bff3c7c264803158d5f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/youtubeCaptions.test.ts": {
+    "mtime": 1781424464.7528076,
+    "ast_hash": "45bcd57b4257bccf8e133d26fb308f7f",
+    "semantic_hash": "45bcd57b4257bccf8e133d26fb308f7f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/api/youtubeCaptions.ts": {
+    "mtime": 1781424514.5652428,
+    "ast_hash": "60ec4c7d1fc72e01c6be349ece5580cb",
+    "semantic_hash": "60ec4c7d1fc72e01c6be349ece5580cb"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/chunking/chunker.test.ts": {
+    "mtime": 1781162459.8861578,
+    "ast_hash": "b243f91f8e536d4e654596e9c5651dd0",
+    "semantic_hash": "b243f91f8e536d4e654596e9c5651dd0"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/chunking/chunker.ts": {
+    "mtime": 1781162459.8864188,
+    "ast_hash": "5447a1d84fac9cf453f3169cd92f08c9",
+    "semantic_hash": "5447a1d84fac9cf453f3169cd92f08c9"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/components/AndroidOnly.tsx": {
+    "mtime": 1779526771.768158,
+    "ast_hash": "678644a79f0c755fe2b584e658f7b7a5",
+    "semantic_hash": "678644a79f0c755fe2b584e658f7b7a5"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/components/DevErrorBoundary.tsx": {
+    "mtime": 1779527299.3329663,
+    "ast_hash": "f5414c1402854c579aeabd1272278902",
+    "semantic_hash": "f5414c1402854c579aeabd1272278902"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/components/TranscriptView.tsx": {
+    "mtime": 1779534657.7504203,
+    "ast_hash": "5a33ad8818478f2c6d53f63c6fb83fc5",
+    "semantic_hash": "5a33ad8818478f2c6d53f63c6fb83fc5"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/components/TranslationSheet.tsx": {
+    "mtime": 1781431089.9355054,
+    "ast_hash": "553ba8756addf285e2a25153b0fc0763",
+    "semantic_hash": "553ba8756addf285e2a25153b0fc0763"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/components/YouTubePlayer.tsx": {
+    "mtime": 1781164769.2516642,
+    "ast_hash": "0b2343ccf02de40d3f7887c5d1f4cbaf",
+    "semantic_hash": "0b2343ccf02de40d3f7887c5d1f4cbaf"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/client.native.ts": {
+    "mtime": 1779527085.050953,
+    "ast_hash": "c571dcce6ee25b726cce785d42c479d7",
+    "semantic_hash": "c571dcce6ee25b726cce785d42c479d7"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/client.ts": {
+    "mtime": 1779528271.9001293,
+    "ast_hash": "fbfa5021eaff89aaf8d08395b7137f9f",
+    "semantic_hash": "fbfa5021eaff89aaf8d08395b7137f9f"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/client.web.ts": {
+    "mtime": 1779528001.5747437,
+    "ast_hash": "9bf4b8a2d059eeda5424a3f008f695fb",
+    "semantic_hash": "9bf4b8a2d059eeda5424a3f008f695fb"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/repos/sessions.ts": {
+    "mtime": 1779527991.4858074,
+    "ast_hash": "4755e36f0b5acc1d9af08d116d064416",
+    "semantic_hash": "4755e36f0b5acc1d9af08d116d064416"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/repos/videos.ts": {
+    "mtime": 1779527988.347276,
+    "ast_hash": "2dd4653579aad5dfec494d1dd2076e94",
+    "semantic_hash": "2dd4653579aad5dfec494d1dd2076e94"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/repos/vocabulary.ts": {
+    "mtime": 1779527994.4406967,
+    "ast_hash": "4b5271fd85ba7e0e29b4caf880737491",
+    "semantic_hash": "4b5271fd85ba7e0e29b4caf880737491"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/db/schema.ts": {
+    "mtime": 1779474664.2068388,
+    "ast_hash": "ee24168b336807b6bbd8a313b17518f3",
+    "semantic_hash": "ee24168b336807b6bbd8a313b17518f3"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/secure/keychain.ts": {
+    "mtime": 1781271316.0774193,
+    "ast_hash": "4f66e9bddbb0769d5a57cf3ee9607e3c",
+    "semantic_hash": "4f66e9bddbb0769d5a57cf3ee9607e3c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/SessionScreenContent.tsx": {
+    "mtime": 1781177475.15574,
+    "ast_hash": "dbca64193344046ed1aa9f1ac95fbfd8",
+    "semantic_hash": "dbca64193344046ed1aa9f1ac95fbfd8"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/bridgeTime.ts": {
+    "mtime": 1781157828.9392033,
+    "ast_hash": "bf45ef215423a864fd85375656e20367",
+    "semantic_hash": "bf45ef215423a864fd85375656e20367"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/e2eLog.ts": {
+    "mtime": 1781157828.903402,
+    "ast_hash": "2d3a8634868a7b90a48724fbd4e85296",
+    "semantic_hash": "2d3a8634868a7b90a48724fbd4e85296"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/endWatcherLogic.test.ts": {
+    "mtime": 1781157828.9125137,
+    "ast_hash": "ef2a3defba716cd5413dc2ab0629440e",
+    "semantic_hash": "ef2a3defba716cd5413dc2ab0629440e"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/endWatcherLogic.ts": {
+    "mtime": 1781157828.9176087,
+    "ast_hash": "9ce63dfa5f0f77f1373e994d0e548cc8",
+    "semantic_hash": "9ce63dfa5f0f77f1373e994d0e548cc8"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/pauseTestFixtures.ts": {
+    "mtime": 1781157828.903451,
+    "ast_hash": "9a7c93e8f5b73a6d7c1a89610f48fc5d",
+    "semantic_hash": "9a7c93e8f5b73a6d7c1a89610f48fc5d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/session/sessionConstants.ts": {
+    "mtime": 1781157828.9033918,
+    "ast_hash": "ac2780c1c942f1fc8a670d3795697cff",
+    "semantic_hash": "ac2780c1c942f1fc8a670d3795697cff"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/store/settings.ts": {
+    "mtime": 1781271316.0775356,
+    "ast_hash": "bdfb6fbe2435628d1bb695a305e55e5a",
+    "semantic_hash": "bdfb6fbe2435628d1bb695a305e55e5a"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/utils/devLog.ts": {
+    "mtime": 1781277676.4047925,
+    "ast_hash": "b16c14b83565e83a51b4a39b34a9686d",
+    "semantic_hash": "b16c14b83565e83a51b4a39b34a9686d"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/utils/proxyUrl.ts": {
+    "mtime": 1781277676.4045553,
+    "ast_hash": "961ef077c8210b255450d13fcf29b85c",
+    "semantic_hash": "961ef077c8210b255450d13fcf29b85c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/src/utils/youtube.ts": {
+    "mtime": 1779474685.4610739,
+    "ast_hash": "ebb833c7ee31fda56479f4ba46199fee",
+    "semantic_hash": "ebb833c7ee31fda56479f4ba46199fee"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/tsconfig.json": {
+    "mtime": 1779474871.9564962,
+    "ast_hash": "105760c9b8544a02dba8e927c74ef200",
+    "semantic_hash": "105760c9b8544a02dba8e927c74ef200"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/vitest.config.ts": {
+    "mtime": 1779528121.5187774,
+    "ast_hash": "c21b7f651aa6a6fa3a6b15dd0768ca93",
+    "semantic_hash": "c21b7f651aa6a6fa3a6b15dd0768ca93"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/package.json": {
+    "mtime": 1779528068.93833,
+    "ast_hash": "d8d49de4040cb602cd0e6102ac2c977b",
+    "semantic_hash": "d8d49de4040cb602cd0e6102ac2c977b"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/src/__tests__/proxy.test.ts": {
+    "mtime": 1781295726.9984412,
+    "ast_hash": "373822ff9bcdbc3971f1009737d550ac",
+    "semantic_hash": "373822ff9bcdbc3971f1009737d550ac"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/src/index.ts": {
+    "mtime": 1779475078.7982547,
+    "ast_hash": "8a825e8f8b9548f131f4278b38b266b4",
+    "semantic_hash": "8a825e8f8b9548f131f4278b38b266b4"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/src/node-server.ts": {
+    "mtime": 1781295719.3085432,
+    "ast_hash": "d581cda248f90d101faac32dc88f559e",
+    "semantic_hash": "d581cda248f90d101faac32dc88f559e"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/tsconfig.json": {
+    "mtime": 1779475232.417668,
+    "ast_hash": "a3639ac9b892142d5ae270e59e8c1489",
+    "semantic_hash": "a3639ac9b892142d5ae270e59e8c1489"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/vitest.config.ts": {
+    "mtime": 1779528065.17065,
+    "ast_hash": "4fbbff73e14a934c1385dddf6c882f9c",
+    "semantic_hash": "4fbbff73e14a934c1385dddf6c882f9c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/package.json": {
+    "mtime": 1781287784.9764495,
+    "ast_hash": "d7e5c6ccdca969c96c12abbe62b01028",
+    "semantic_hash": "d7e5c6ccdca969c96c12abbe62b01028"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/packages/shared/package.json": {
+    "mtime": 1779474456.6018705,
+    "ast_hash": "a247020a1a93b39e10c651224213572c",
+    "semantic_hash": "a247020a1a93b39e10c651224213572c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/packages/shared/src/index.ts": {
+    "mtime": 1779474460.192812,
+    "ast_hash": "598a43437ad67b570d9814424ea04bcb",
+    "semantic_hash": "598a43437ad67b570d9814424ea04bcb"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/packages/shared/src/types.ts": {
+    "mtime": 1779474459.8257668,
+    "ast_hash": "8b573a2314f3e960eb0265c0cf565b53",
+    "semantic_hash": "8b573a2314f3e960eb0265c0cf565b53"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/packages/shared/tsconfig.json": {
+    "mtime": 1779474457.8196695,
+    "ast_hash": "ebeadbac0e660ca2e1e9e6e6007ab435",
+    "semantic_hash": "ebeadbac0e660ca2e1e9e6e6007ab435"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/build-apk-local.mjs": {
+    "mtime": 1781279238.0108275,
+    "ast_hash": "02ec5213bab525644aac0f7356af4f61",
+    "semantic_hash": "02ec5213bab525644aac0f7356af4f61"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/build-apk.mjs": {
+    "mtime": 1781268641.7435305,
+    "ast_hash": "8b2165990002e58d3a40ab9b552b0c19",
+    "semantic_hash": "8b2165990002e58d3a40ab9b552b0c19"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/e2e-dev.mjs": {
+    "mtime": 1781157828.9337828,
+    "ast_hash": "bd75dfe3ca8711fc742e7c022971aa9c",
+    "semantic_hash": "bd75dfe3ca8711fc742e7c022971aa9c"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/e2e-invariants.mjs": {
+    "mtime": 1781160865.8570294,
+    "ast_hash": "31e533f81780c346d7a15c8b54ad9a29",
+    "semantic_hash": "31e533f81780c346d7a15c8b54ad9a29"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/e2e-pause.mjs": {
+    "mtime": 1781157828.939163,
+    "ast_hash": "41d60ca40943d120565ea199e0263828",
+    "semantic_hash": "41d60ca40943d120565ea199e0263828"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/e2e-replay.mjs": {
+    "mtime": 1781160688.4347513,
+    "ast_hash": "e3c63b99259b0fef10c977ecf49405f4",
+    "semantic_hash": "e3c63b99259b0fef10c977ecf49405f4"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/e2e-stress.mjs": {
+    "mtime": 1781160662.217505,
+    "ast_hash": "8e1a9a2edff474fd65239d90f5c7a146",
+    "semantic_hash": "8e1a9a2edff474fd65239d90f5c7a146"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/install-expo-go.sh": {
+    "mtime": 1781157828.933811,
+    "ast_hash": "f507582a8912235cc9af7d9235176982",
+    "semantic_hash": "f507582a8912235cc9af7d9235176982"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/start-emulator.sh": {
+    "mtime": 1781157828.939192,
+    "ast_hash": "58927a4c20db17228c87b49b15834b72",
+    "semantic_hash": "58927a4c20db17228c87b49b15834b72"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/scripts/tunnel.mjs": {
+    "mtime": 1779868722.9161634,
+    "ast_hash": "826ab0bd77aa804d1cfc31fdb209bb0e",
+    "semantic_hash": "826ab0bd77aa804d1cfc31fdb209bb0e"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/.github/workflows/deploy-ec2.yml": {
+    "mtime": 1781295773.2156858,
+    "ast_hash": "f27a3665aed85a6e9d4550a1682d18e0",
+    "semantic_hash": "f27a3665aed85a6e9d4550a1682d18e0"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/.maestro/pause-on-end.yaml": {
+    "mtime": 1781157828.9211583,
+    "ast_hash": "11a8ef12f33dc7d23364bb6e8b10f4ef",
+    "semantic_hash": "11a8ef12f33dc7d23364bb6e8b10f4ef"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/AGENTS.md": {
+    "mtime": 1781177096.6977096,
+    "ast_hash": "0ca36e87936f159a8c0260b88390487b",
+    "semantic_hash": "0ca36e87936f159a8c0260b88390487b"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/CLAUDE.md": {
+    "mtime": 1781162459.8843508,
+    "ast_hash": "58d2630a2e509f32005fa82315e58fdf",
+    "semantic_hash": "58d2630a2e509f32005fa82315e58fdf"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/README.md": {
+    "mtime": 1781277979.7864547,
+    "ast_hash": "26b68d2e6b054423ba7d959c3a9a4944",
+    "semantic_hash": "26b68d2e6b054423ba7d959c3a9a4944"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/AGENTS.md": {
+    "mtime": 1779526647.580329,
+    "ast_hash": "263e5da6acaf3add608caefa66a135fc",
+    "semantic_hash": "263e5da6acaf3add608caefa66a135fc"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/mobile/CLAUDE.md": {
+    "mtime": 1779526476.022093,
+    "ast_hash": "1d6577ee2c1818285d8dc43474e0b769",
+    "semantic_hash": "1d6577ee2c1818285d8dc43474e0b769"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/apps/proxy/AGENTS.md": {
+    "mtime": 1779526471.8798926,
+    "ast_hash": "7413568f4ad66d32ce76100b913ca547",
+    "semantic_hash": "7413568f4ad66d32ce76100b913ca547"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/docker-compose.prod.yml": {
+    "mtime": 1781431089.9769132,
+    "ast_hash": "49bb673563e163b149a504ce8ff711ad",
+    "semantic_hash": "49bb673563e163b149a504ce8ff711ad"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/docs/DEBUGGING.md": {
+    "mtime": 1781162459.8869345,
+    "ast_hash": "c1d9494a94134135193a311cee6afec5",
+    "semantic_hash": "c1d9494a94134135193a311cee6afec5"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/docs/E2E-ANDROID.md": {
+    "mtime": 1781157828.9392717,
+    "ast_hash": "a44e2848f1291b691bb695d27f3583d8",
+    "semantic_hash": "a44e2848f1291b691bb695d27f3583d8"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/docs/HANDOFF.md": {
+    "mtime": 1779535174.4507015,
+    "ast_hash": "3b29ac426bd20d3cc2e4cc73724d3f82",
+    "semantic_hash": "3b29ac426bd20d3cc2e4cc73724d3f82"
+  },
+  "/Users/mich/PycharmProjects/shadowtube/pnpm-workspace.yaml": {
+    "mtime": 1779474451.6990268,
+    "ast_hash": "de6b9e7bb156f8dc12f68dc3d1a0b649",
+    "semantic_hash": "de6b9e7bb156f8dc12f68dc3d1a0b649"
+  }
+}

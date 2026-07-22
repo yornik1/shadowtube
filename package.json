@@ -27,7 +27,8 @@
     "typecheck": "pnpm -r typecheck",
     "build:apk": "node scripts/build-apk.mjs",
     "build:apk:preview": "node scripts/build-apk.mjs --profile preview",
-    "build:apk:local": "node scripts/build-apk-local.mjs"
+    "build:apk:local": "node scripts/build-apk-local.mjs",
+    "apk:qr": "node scripts/apk-qr.mjs"
   },
   "engines": {
     "node": ">=20"

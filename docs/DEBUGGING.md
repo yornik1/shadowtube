@@ -47,7 +47,7 @@ npx eas build --profile development --platform android
 | Симптом | Решение |
 |---------|---------|
 | **`Failed to download remote update`** | Два Metro запущены одновременно. Закройте все терминалы с expo, запустите только `pnpm mobile` из корня |
-| **`Failed to download remote update`** (альт.) | Expo Go лезет на EAS — `updates.enabled: false` в app.config.ts уже выставлен |
+| **`Failed to download remote update`** (альт.) | Expo Go лезет на EAS за OTA. `updates.enabled: true` (нужно для выкаток), но в dev-сборке проверка сама возвращает «unavailable» — см. `src/updates/otaUpdates.ts`. Если мешает, запускайте с `--clear` |
 | Crash сразу при открытии | Обновить Expo Go; перезапуск `pnpm mobile` из корня |
 | «Ошибка базы данных» на главной | SQLite — текст ошибки на экране + Metro |
 | Сеть при «Начать» | `EXPO_PUBLIC_PROXY_URL=http://IP-Mac:8787`, proxy: `pnpm proxy:dev` |

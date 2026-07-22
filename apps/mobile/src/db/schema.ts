@@ -65,14 +65,46 @@ export const vocabulary = sqliteTable("vocabulary", {
   endSec: real("end_sec"),
   chunkIdx: integer("chunk_idx"),
 
-  // --- SM-2 ---
+  // --- Планирование повторений ---
+  /** @deprecated SM-2 easiness factor. Оставлен для отката на SM-2. */
   ef: real("ef").notNull().default(2.5),
   intervalDays: integer("interval_days").notNull().default(0),
   reps: integer("reps").notNull().default(0),
   dueAt: integer("due_at", { mode: "timestamp_ms" }),
   lastReviewedAt: integer("last_reviewed_at", { mode: "timestamp_ms" }),
   lapses: integer("lapses").notNull().default(0),
+
+  // --- FSRS ---
+  stability: real("stability"),
+  difficulty: real("difficulty"),
+  fsrsState: integer("fsrs_state").notNull().default(0),
+  elapsedDays: real("elapsed_days").notNull().default(0),
+  scheduledDays: real("scheduled_days").notNull().default(0),
 });
+
+/**
+ * Кэш переводов чанков.
+ *
+ * Без него каждое переоткрытие видео заново жжёт квоту Gemini (250 запросов
+ * в сутки на free tier), а видео на три часа — это 1234 чанка. Кэш в памяти
+ * умирал вместе с приложением; этот переживает перезапуск и работает офлайн.
+ */
+export const chunkTranslations = sqliteTable(
+  "chunk_translations",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    videoId: text("video_id").notNull(),
+    chunkIdx: integer("chunk_idx").notNull(),
+    /** Хэш текста чанка: субтитры могут поменяться — тогда кэш невалиден. */
+    textHash: text("text_hash").notNull(),
+    ru: text("ru").notNull(),
+    /** JSON-массив PhraseCandidate — готовые к сохранению карточки. */
+    phrasesJson: text("phrases_json").notNull().default("[]"),
+    model: text("model").notNull().default(""),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+  },
+  (t) => [uniqueIndex("chunk_tr_video_idx").on(t.videoId, t.chunkIdx)],
+);
 
 /** Key-value для счётчиков мотивации: цепочка дней, дневная норма, напоминание. */
 export const appState = sqliteTable("app_state", {

@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, like, lte, or, sql } from "drizzle-orm";
 import { getDb } from "../client";
 import { vocabulary, type VocabularyKind } from "../schema";
-import { nextReview, type Grade } from "@/src/srs/sm2";
+import { nextReview, type Grade } from "@/src/srs/fsrs";
 
 export type VocabularyRow = typeof vocabulary.$inferSelect;
 
@@ -128,7 +128,7 @@ export async function countDue(now: Date = new Date()): Promise<number> {
   return Number(rows[0]?.count ?? 0);
 }
 
-/** Записывает оценку и пересчитывает интервал по SM-2. */
+/** Записывает оценку и пересчитывает интервал по FSRS. */
 export async function applyReview(
   id: number,
   grade: Grade,
@@ -146,10 +146,15 @@ export async function applyReview(
 
   const outcome = nextReview(
     {
-      ef: card.ef,
-      intervalDays: card.intervalDays,
+      stability: card.stability,
+      difficulty: card.difficulty,
+      fsrsState: card.fsrsState,
+      elapsedDays: card.elapsedDays,
+      scheduledDays: card.scheduledDays,
       reps: card.reps,
       lapses: card.lapses,
+      dueAt: card.dueAt,
+      lastReviewedAt: card.lastReviewedAt,
     },
     grade,
     now,
@@ -158,7 +163,11 @@ export async function applyReview(
   await db
     .update(vocabulary)
     .set({
-      ef: outcome.ef,
+      stability: outcome.stability,
+      difficulty: outcome.difficulty,
+      fsrsState: outcome.fsrsState,
+      elapsedDays: outcome.elapsedDays,
+      scheduledDays: outcome.scheduledDays,
       intervalDays: outcome.intervalDays,
       reps: outcome.reps,
       lapses: outcome.lapses,

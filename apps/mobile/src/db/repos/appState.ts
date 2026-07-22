@@ -43,3 +43,31 @@ export async function getStreakState(): Promise<StreakState> {
 export async function saveStreakState(state: StreakState): Promise<void> {
   await writeRaw(STREAK_KEY, JSON.stringify(state));
 }
+
+/**
+ * Счётчик обращений к Gemini за текущие сутки.
+ *
+ * Free tier — 250 запросов в день, и без счётчика расход остаётся догадкой:
+ * человек упирается в лимит посреди сессии и не понимает, почему перевод
+ * перестал приходить.
+ */
+function requestKey(now: Date): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return `gemini_requests_${y}-${m}-${d}`;
+}
+
+export async function bumpRequestCount(now: Date = new Date()): Promise<number> {
+  const key = requestKey(now);
+  const current = Number((await readRaw(key)) ?? 0);
+  const next = Number.isFinite(current) ? current + 1 : 1;
+  await writeRaw(key, String(next));
+  return next;
+}
+
+export async function getRequestCount(now: Date = new Date()): Promise<number> {
+  const raw = await readRaw(requestKey(now));
+  const n = Number(raw ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}

@@ -16,7 +16,7 @@ import {
   type StreakState,
 } from "@/src/srs/streak";
 import { buildCard } from "@/src/srs/cardModes";
-import { formatDue, type Grade } from "@/src/srs/sm2";
+import { formatDue, type Grade } from "@/src/srs/fsrs";
 import { useSettingsStore } from "@/src/store/settings";
 import { Button, EmptyState, ProgressBar } from "@/src/ui/components";
 import { colors, font, radius, space } from "@/src/ui/theme";

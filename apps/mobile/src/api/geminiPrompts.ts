@@ -6,7 +6,9 @@
  * with», «it's a stretch») переводится как единое целое, а не по словам.
  */
 import type {
+  ChunkAnalysis,
   ChunkTranslation,
+  PhraseCandidate,
   PhraseKind,
   PhraseNote,
   PhraseTranslation,
@@ -16,6 +18,10 @@ const MAX_RU = 200;
 const MAX_DEFINITION = 220;
 const MAX_NOTE = 200;
 const MAX_NOTES_PER_CHUNK = 4;
+const MAX_PHRASES_PER_CHUNK = 3;
+
+/** Сколько чанков спрашиваем за один запрос к Gemini — бюджет 250 req/day на 3ч видео (~1234 чанка). */
+export const MAX_CHUNKS_PER_BATCH = 20;
 
 const KINDS: PhraseKind[] = ["idiom", "phrasal", "collocation", "plain"];
 
@@ -161,4 +167,115 @@ export function parseChunkResponse(raw: string): ChunkTranslation {
   }
 
   return { ru, notes };
+}
+
+/** worth должен быть числом 1..5 — модель иногда шлёт 0, 99 или строку. */
+function clampWorth(v: unknown): number {
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(5, Math.max(1, Math.round(n)));
+}
+
+/**
+ * Пакетный промпт: до MAX_CHUNKS_PER_BATCH чанков за один вызов Gemini.
+ * Бесплатный тариф — 250 запросов/день, а 3-часовое видео даёт ~1234 чанка,
+ * поэтому по одному чанку за запрос бюджета не хватит даже на одно видео.
+ */
+export function buildBatchPrompt(chunks: { idx: number; text: string }[]): string {
+  const list = chunks.map((c) => `[${c.idx}] ${c.text}`).join("\n");
+  return `You are helping a Russian speaker (B2) who is preparing for English job
+interviews. For EACH numbered chunk below, do two things:
+
+1. Give a natural Russian translation of the WHOLE chunk (not word-by-word).
+2. Pick 0-3 phrases from that chunk worth memorising as flashcards.
+
+Chunks:
+${list}
+
+PHRASE SELECTION: prefer idioms, phrasal verbs and fixed collocations over a
+single transparent word — a lone word like "important" is never worth a
+card. If a chunk has nothing worth learning, return an empty "phrases" list
+for it — that is a valid, expected answer. Never invent a phrase just to
+fill the list.
+
+SPAN CLEANUP — critical. These chunks come from auto-generated captions cut
+mid-sentence, so raw substrings are often broken: doubled hyphens, speaker
+dashes, a fragment spilling into the next sentence. A phrase "span" must be
+a CLEAN, self-contained flashcard form — never copy a broken substring as
+is, and never let it run across a sentence boundary.
+Bad span (do NOT do this): "figure out- - That's" (doubled hyphen, spills
+into the next sentence). Cleaned form: "figure out".
+Strip stray dashes, leading/trailing conjunctions ("and", "but", "so"), and
+speaker-turn dashes before returning a span.
+
+For each phrase also give:
+- "worth": 1-5, how much a B2 learner preparing for interviews would gain
+  from memorising it. 5 = genuinely useful and reusable in an interview,
+  1 = trivially transparent (such phrases should basically never be returned).
+- "definitionEn": simple B1 English, max ~15 words.
+- "kind": "idiom" | "phrasal" | "collocation" | "plain".
+
+Output strict JSON only, no commentary, shaped exactly like this:
+{"chunks":[{"idx":0,"ru":"...","phrases":[{"span":"...","ru":"...","definitionEn":"...","kind":"idiom","worth":4}]}]}`;
+}
+
+/**
+ * Терпимый парсер пакетного ответа. Один битый чанк не должен ронять весь
+ * батч — пропускаем его и возвращаем остальные (`ru` для остальных чанков
+ * уже стоило вызова Gemini, выбрасывать всё жалко).
+ */
+export function parseBatchResponse(raw: string, requestedIdx: number[]): ChunkAnalysis[] {
+  let parsed: unknown;
+  try {
+    parsed = extractJson(raw);
+  } catch {
+    return [];
+  }
+
+  const rawChunks = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray((parsed as Record<string, unknown> | null)?.chunks)
+      ? (parsed as Record<string, unknown>).chunks
+      : null;
+  if (!Array.isArray(rawChunks)) return [];
+
+  const allowedIdx = new Set(requestedIdx);
+  const results: ChunkAnalysis[] = [];
+
+  for (const c of rawChunks) {
+    try {
+      if (!c || typeof c !== "object") continue;
+      const item = c as Record<string, unknown>;
+      const idx = typeof item.idx === "number" ? item.idx : undefined;
+      if (idx === undefined || !allowedIdx.has(idx)) continue;
+
+      const ru = str(item.ru, MAX_RU * 2);
+      if (!ru) continue;
+
+      const rawPhrases = Array.isArray(item.phrases) ? item.phrases : [];
+      const phrases: PhraseCandidate[] = [];
+      for (const p of rawPhrases) {
+        if (!p || typeof p !== "object") continue;
+        const ph = p as Record<string, unknown>;
+        const span = str(ph.span, 80);
+        const phraseRu = str(ph.ru, MAX_RU);
+        if (!span || !phraseRu) continue;
+        phrases.push({
+          span,
+          ru: phraseRu,
+          definitionEn: str(ph.definitionEn, MAX_DEFINITION) ?? "",
+          kind: asKind(ph.kind),
+          worth: clampWorth(ph.worth),
+        });
+        if (phrases.length >= MAX_PHRASES_PER_CHUNK) break;
+      }
+
+      results.push({ chunkIdx: idx, ru, phrases });
+    } catch {
+      // сломанный чанк пропускаем, остальные всё равно годны
+      continue;
+    }
+  }
+
+  return results;
 }

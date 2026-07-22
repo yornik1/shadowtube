@@ -14,14 +14,15 @@ import {
 import { TranscriptView } from "@/src/components/TranscriptView";
 import { PhraseSheet } from "@/src/components/PhraseSheet";
 import { useSettingsStore } from "@/src/store/settings";
-import {
-  getCachedChunkTranslation,
-  prefetchChunk,
-  translateChunk,
-} from "@/src/api/gemini";
 import { isFakeGemini } from "@/src/api/geminiFake";
-import { addVocabularyEntry } from "@/src/db/repos/vocabulary";
+import {
+  ensureWindow,
+  forgetVideo,
+  getAnalysis,
+} from "@/src/api/geminiBatch";
+import { addVocabularyEntry, listVocabulary } from "@/src/db/repos/vocabulary";
 import { refreshDueCount } from "@/src/srs/dueStore";
+import { MAX_PER_SESSION, selectAutoCards } from "@/src/srs/autoCards";
 import {
   selectedText,
   selectedWordCount,
@@ -101,6 +102,8 @@ export function SessionScreenContent({
   /** Выделение внутри активного чанка; null — ничего не выделено. */
   const [selection, setSelection] = useState<Selection | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
+  /** Текст этого чанка уже открыт вручную (в режиме скрытого текста). */
+  const [revealed, setRevealed] = useState(false);
   const [chunkRu, setChunkRu] = useState<string | null>(null);
   const [chunkRuLoading, setChunkRuLoading] = useState(false);
   const [savingChunk, setSavingChunk] = useState(false);
@@ -116,6 +119,8 @@ export function SessionScreenContent({
 
   const geminiKey = useSettingsStore((s) => s.geminiKey);
   const geminiModel = useSettingsStore((s) => s.geminiModel);
+  const autoCards = useSettingsStore((s) => s.autoCards);
+  const hideText = useSettingsStore((s) => s.hideText);
 
   const current = chunks[index];
   const nextChunk = chunks[index + 1];
@@ -276,18 +281,51 @@ export function SessionScreenContent({
     };
   }, [clearEndWatcher, cancelPauseConfirmTimers]);
 
-  // Греем перевод чанка заранее: тап по фразе почти всегда попадёт в кэш.
+  /** Сколько карточек уже создано автоматически за этот заход. */
+  const autoCountRef = useRef(0);
+
+  const chunkTexts = useMemo(() => chunks.map((c) => c.text), [chunks]);
+
+  // Тянем окно переводов вокруг текущего чанка одним пакетным запросом.
+  // Раньше это был запрос на чанк, что при 250 запросах в сутки и 1234 чанках
+  // в трёхчасовом видео не оставляло шансов дойти даже до середины.
   useEffect(() => {
-    if (!current?.text) return;
     if (!geminiKey && !isFakeGemini()) return;
-    prefetchChunk(geminiKey ?? "", current.text, geminiModel);
-  }, [geminiKey, geminiModel, current?.text]);
+    if (chunkTexts.length === 0) return;
+    let cancelled = false;
+    setChunkRuLoading(true);
+    void ensureWindow({
+      apiKey: geminiKey ?? "",
+      videoId,
+      chunkTexts,
+      currentIdx: index,
+      model: geminiModel,
+    })
+      .catch((e) => {
+        if (!cancelled) {
+          toast.error(e instanceof Error ? e.message : "Ошибка перевода");
+        }
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setChunkRuLoading(false);
+        setChunkRu(getAnalysis(videoId, index)?.ru ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [geminiKey, geminiModel, videoId, index, chunkTexts]);
 
   // Новый чанк — старое выделение и старый перевод больше не относятся к делу.
   useEffect(() => {
     setSelection(null);
-    setChunkRu(current?.text ? (getCachedChunkTranslation(current.text)?.ru ?? null) : null);
-  }, [current?.text]);
+    setShowTranslation(false);
+    setRevealed(false);
+    setChunkRu(getAnalysis(videoId, index)?.ru ?? null);
+  }, [videoId, index]);
+
+  // Память под переводы живёт всю сессию — чистим при уходе с экрана.
+  useEffect(() => () => forgetVideo(videoId), [videoId]);
 
   const tokens = useMemo(
     () => (current?.text ? tokenize(current.text) : []),
@@ -296,38 +334,71 @@ export function SessionScreenContent({
   const phrase = selectedText(tokens, selection);
   const phraseWords = selectedWordCount(tokens, selection);
 
-  const loadChunkTranslation = useCallback(async (): Promise<string | null> => {
-    if (!current?.text) return null;
-    const cached = getCachedChunkTranslation(current.text);
-    if (cached) {
-      setChunkRu(cached.ru);
-      return cached.ru;
+  /**
+   * Создаёт карточки из фраз, которые модель нашла в этом чанке.
+   *
+   * Момент выбран не случайно: карточки рождаются, когда человек ОТКРЫЛ
+   * перевод, то есть реально разбирался с этим предложением. Автосоздание на
+   * каждый проигранный чанк засыпало бы словарь сотнями карточек за сессию.
+   */
+  const autoCreateCards = useCallback(async () => {
+    if (!autoCards || !current) return;
+    const analysis = getAnalysis(videoId, index);
+    if (!analysis || analysis.phrases.length === 0) return;
+    if (autoCountRef.current >= MAX_PER_SESSION) return;
+
+    const known = new Set(
+      (await listVocabulary()).map((r) => r.word.trim().toLowerCase()),
+    );
+    const { accepted, rejected } = selectAutoCards(analysis.phrases, {
+      alreadyKnown: known,
+      sessionCount: autoCountRef.current,
+    });
+    dlog(
+      "autocards",
+      `chunk=${index} accepted=${accepted.length} rejected=${rejected.map((r) => r.reason).join(",")}`,
+    );
+    if (accepted.length === 0) return;
+
+    let created = 0;
+    for (const p of accepted) {
+      const res = await addVocabularyEntry({
+        text: p.span,
+        context: current.text,
+        translation: p.ru,
+        definitionEn: p.definitionEn,
+        kind: "phrase",
+        sourceVideoId: videoId,
+        chunkIdx: index,
+        startSec: current.start,
+        endSec: current.end,
+      });
+      if (res.created) created += 1;
     }
-    if (!geminiKey && !isFakeGemini()) {
-      toast.error("Добавьте Gemini API key в Настройках");
-      return null;
+
+    if (created > 0) {
+      autoCountRef.current += created;
+      refreshDueCount();
+      e2eEvent("auto_cards", { idx: index, created });
+      toast.success(
+        created === 1 ? "+1 карточка в словарь" : `+${created} карточки в словарь`,
+      );
     }
-    setChunkRuLoading(true);
-    try {
-      const r = await translateChunk(geminiKey ?? "", current.text, geminiModel);
-      setChunkRu(r.ru);
-      return r.ru;
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Ошибка перевода");
-      return null;
-    } finally {
-      setChunkRuLoading(false);
-    }
-  }, [current?.text, geminiKey, geminiModel]);
+  }, [autoCards, current, index, videoId]);
 
   const toggleChunkTranslation = useCallback(() => {
     e2eEvent("btn", { btn: "chunk_ru", idx: index });
     const next = !showTranslation;
     setShowTranslation(next);
-    // Загрузку запускаем СНАРУЖИ апдейтера: внутри он выполняется во время
-    // рендера, и любой setState из него (тост об ошибке) ломает React.
-    if (next && !chunkRu) void loadChunkTranslation();
-  }, [chunkRu, index, loadChunkTranslation, showTranslation]);
+    if (!next) return;
+    if (!geminiKey && !isFakeGemini()) {
+      toast.error("Добавьте Gemini API key в Настройках");
+      return;
+    }
+    // Побочные эффекты — строго снаружи апдейтера setState: внутри он
+    // выполняется во время рендера, и setState оттуда (тост) ломает React.
+    void autoCreateCards();
+  }, [autoCreateCards, geminiKey, index, showTranslation]);
 
   /** Сохранить весь чанк целиком — «лучшая фраза сессии» одним тапом. */
   const saveWholeChunk = useCallback(async () => {
@@ -335,8 +406,11 @@ export function SessionScreenContent({
     setSavingChunk(true);
     e2eEvent("btn", { btn: "save_chunk", idx: index });
     try {
-      const ru = chunkRu ?? (await loadChunkTranslation());
-      if (!ru) return;
+      const ru = chunkRu ?? getAnalysis(videoId, index)?.ru;
+      if (!ru) {
+        toast.error("Перевод этого чанка ещё не готов");
+        return;
+      }
       const { created } = await addVocabularyEntry({
         text: current.text,
         context: current.text,
@@ -356,7 +430,7 @@ export function SessionScreenContent({
     } finally {
       setSavingChunk(false);
     }
-  }, [current, chunkRu, index, loadChunkTranslation, savingChunk, videoId]);
+  }, [current, chunkRu, index, savingChunk, videoId]);
 
   const playChunkAt = useCallback(
     async (idx: number) => {
@@ -598,9 +672,18 @@ export function SessionScreenContent({
         onWordPress={handleTokenPress}
         translation={showTranslation ? chunkRu : null}
         translationLoading={showTranslation && chunkRuLoading}
+        hidden={hideText && !revealed}
+        onReveal={() => {
+          e2eEvent("reveal_text", { idx: index });
+          setRevealed(true);
+        }}
       />
 
-      {phrase ? (
+      {hideText && !revealed ? (
+        <Text style={styles.hint}>
+          Replay → повторяй вслух → тапни карточку, чтобы проверить себя
+        </Text>
+      ) : phrase ? (
         <View style={styles.selectionBar}>
           <View style={styles.selectionTextWrap}>
             <Text style={styles.selectionPhrase} numberOfLines={1}>

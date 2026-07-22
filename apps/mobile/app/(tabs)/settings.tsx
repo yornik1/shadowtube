@@ -19,6 +19,7 @@ import {
   getConfiguredProxyUrl,
 } from "@/src/api/proxyConfig";
 import { FAKE_PREFIX, isFakeGemini } from "@/src/api/geminiFake";
+import { getRequestCount } from "@/src/db/repos/appState";
 import { CARD_MODES } from "@/src/srs/cardModes";
 import { DEFAULT_DAILY_GOAL } from "@/src/srs/streak";
 import {
@@ -49,6 +50,10 @@ export default function SettingsScreen() {
     setAvailableModels,
     cardMode,
     saveCardMode,
+    autoCards,
+    saveAutoCards,
+    hideText,
+    saveHideText,
   } = useSettingsStore();
   const [draft, setDraft] = useState("");
   const [proxyDraft, setProxyDraft] = useState(proxyUrlOverride ?? "");
@@ -56,7 +61,14 @@ export default function SettingsScreen() {
   const [reminderOn, setReminderOn] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
+  const [requestCount, setRequestCount] = useState(0);
   const updateInfo = currentUpdateInfo();
+
+  // Расход квоты Gemini иначе остаётся догадкой: на free tier это 250
+  // запросов в сутки, и упереться в лимит посреди сессии крайне неприятно.
+  useEffect(() => {
+    void getRequestCount().then(setRequestCount).catch(() => {});
+  }, []);
 
   const handleCheckUpdate = async () => {
     setCheckingUpdate(true);
@@ -209,6 +221,45 @@ export default function SettingsScreen() {
               </Pressable>
             );
           })}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.label}>Сессия</Text>
+          <Text style={styles.hint}>
+            Перевод чанков тянется пачками по 20 и кэшируется в базе, поэтому
+            повторный заход в видео не тратит квоту. Сегодня израсходовано
+            запросов: {requestCount}.
+          </Text>
+
+          <Pressable
+            style={[styles.chip, autoCards && styles.chipActive]}
+            onPress={() => saveAutoCards(!autoCards)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: autoCards }}
+          >
+            <Text style={[styles.chipTitle, autoCards && styles.chipTextActive]}>
+              {autoCards ? "✓ " : ""}Карточки создаются автоматически
+            </Text>
+            <Text style={styles.chipHint}>
+              Когда открываешь перевод чанка, полезные идиомы и связки сами
+              попадают в словарь. Максимум 2 с предложения и 15 за сессию.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.chip, hideText && styles.chipActive]}
+            onPress={() => saveHideText(!hideText)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: hideText }}
+          >
+            <Text style={[styles.chipTitle, hideText && styles.chipTextActive]}>
+              {hideText ? "✓ " : ""}Прятать текст до тапа
+            </Text>
+            <Text style={styles.chipHint}>
+              Сначала слушаешь и повторяешь вслепую, потом открываешь и
+              проверяешь себя. Иначе это чтение вслух, а не аудирование.
+            </Text>
+          </Pressable>
         </View>
 
         <View style={styles.section}>

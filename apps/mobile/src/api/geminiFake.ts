@@ -12,7 +12,11 @@
  * Переводы намеренно помечены «[тест]» — фейк не должен молча притворяться
  * настоящим переводом и утекать в словарь как настоящий.
  */
-import type { ChunkTranslation, PhraseTranslation } from "@shadowtube/shared";
+import type {
+  ChunkAnalysis,
+  ChunkTranslation,
+  PhraseTranslation,
+} from "@shadowtube/shared";
 
 export const FAKE_PREFIX = "[тест]";
 
@@ -63,6 +67,32 @@ export async function fakePhraseTranslation(
     definitionEn: `${FAKE_PREFIX} definition of "${span.trim()}" (${words} word${words === 1 ? "" : "s"})`,
     kind: words > 1 ? "collocation" : "plain",
   };
+}
+
+/** Пакетный разбор без сети — тем же путём, что и настоящий. */
+export function fakeBatchAnalyses(
+  chunks: { idx: number; text: string }[],
+): ChunkAnalysis[] {
+  return chunks.map(({ idx, text }) => {
+    const words = text.trim().split(/\s+/);
+    // Берём осмысленный кусок из середины, чтобы карточка выглядела как живая.
+    const span = words.slice(1, 4).join(" ") || text.trim().slice(0, 24);
+    return {
+      chunkIdx: idx,
+      ru: `${FAKE_PREFIX} перевод чанка ${idx}: ${text.trim().slice(0, 80)}`,
+      phrases: span
+        ? [
+            {
+              span,
+              ru: `${FAKE_PREFIX} перевод «${span}»`,
+              definitionEn: `${FAKE_PREFIX} definition of "${span}"`,
+              kind: "collocation" as const,
+              worth: 4,
+            },
+          ]
+        : [],
+    };
+  });
 }
 
 export async function fakeChunkTranslation(

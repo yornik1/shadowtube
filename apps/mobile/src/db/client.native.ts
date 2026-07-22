@@ -1,7 +1,11 @@
 import { openDatabaseSync } from "expo-sqlite";
 import { drizzle } from "drizzle-orm/expo-sqlite";
 import * as schema from "./schema";
-import { planColumnMigrations, VOCABULARY_COLUMNS } from "./migrations";
+import {
+  FSRS_COLUMNS,
+  planColumnMigrations,
+  VOCABULARY_COLUMNS,
+} from "./migrations";
 
 const DB_NAME = "shadowtube.db";
 
@@ -86,9 +90,25 @@ function runMigrations(expoDb: ReturnType<typeof openDatabaseSync>) {
       value TEXT NOT NULL
     );
   `);
+  expoDb.execSync(`
+    CREATE TABLE IF NOT EXISTS chunk_translations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+      video_id TEXT NOT NULL,
+      chunk_idx INTEGER NOT NULL,
+      text_hash TEXT NOT NULL,
+      ru TEXT NOT NULL,
+      phrases_json TEXT NOT NULL DEFAULT '[]',
+      model TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL
+    );
+  `);
+  expoDb.execSync(`
+    CREATE UNIQUE INDEX IF NOT EXISTS chunk_tr_video_idx
+      ON chunk_translations(video_id, chunk_idx);
+  `);
 
   // Словари, созданные до фразового режима и SRS, донастраиваем на месте.
-  ensureColumns(expoDb, "vocabulary", VOCABULARY_COLUMNS);
+  ensureColumns(expoDb, "vocabulary", { ...VOCABULARY_COLUMNS, ...FSRS_COLUMNS });
   expoDb.execSync(
     `CREATE INDEX IF NOT EXISTS vocabulary_due_at ON vocabulary(due_at);`,
   );

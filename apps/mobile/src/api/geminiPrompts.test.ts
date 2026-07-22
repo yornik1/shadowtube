@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildBatchPrompt,
   buildChunkPrompt,
   buildPhrasePrompt,
+  parseBatchResponse,
   parseChunkResponse,
   parsePhraseResponse,
 } from "./geminiPrompts";
@@ -131,5 +133,145 @@ describe("buildChunkPrompt", () => {
     const p = buildChunkPrompt("Hello there.");
     expect(p).toContain("Hello there.");
     expect(p).toContain("JSON only");
+  });
+});
+
+describe("buildBatchPrompt", () => {
+  it("includes every chunk's text and idx", () => {
+    const p = buildBatchPrompt([
+      { idx: 0, text: "You can't get away with that here." },
+      { idx: 1, text: "She decided to figure out a plan." },
+    ]);
+    expect(p).toContain("[0]");
+    expect(p).toContain("You can't get away with that here.");
+    expect(p).toContain("[1]");
+    expect(p).toContain("She decided to figure out a plan.");
+  });
+
+  it("tells the model to return empty phrase lists instead of inventing filler", () => {
+    const p = buildBatchPrompt([{ idx: 0, text: "Hello there." }]);
+    expect(p).toMatch(/empty.*phrases.*list/i);
+    expect(p).toMatch(/never invent/i);
+  });
+});
+
+describe("parseBatchResponse", () => {
+  it("parses a well-formed batch fully", () => {
+    const r = parseBatchResponse(
+      JSON.stringify({
+        chunks: [
+          {
+            idx: 0,
+            ru: "Ты не можешь так просто это провернуть.",
+            phrases: [
+              {
+                span: "get away with",
+                ru: "выйти сухим из воды",
+                definitionEn: "to do something wrong and not be punished",
+                kind: "idiom",
+                worth: 5,
+              },
+            ],
+          },
+          { idx: 1, ru: "Ничего особенного тут нет.", phrases: [] },
+        ],
+      }),
+      [0, 1],
+    );
+
+    expect(r).toHaveLength(2);
+    expect(r[0]!.chunkIdx).toBe(0);
+    expect(r[0]!.ru).toBe("Ты не можешь так просто это провернуть.");
+    expect(r[0]!.phrases).toHaveLength(1);
+    expect(r[0]!.phrases[0]!.span).toBe("get away with");
+    expect(r[0]!.phrases[0]!.worth).toBe(5);
+    expect(r[1]!.phrases).toEqual([]);
+  });
+
+  it("drops a chunk whose idx is outside the requested set", () => {
+    const r = parseBatchResponse(
+      JSON.stringify({
+        chunks: [
+          { idx: 0, ru: "Перевод", phrases: [] },
+          { idx: 7, ru: "Чужой чанк", phrases: [] },
+        ],
+      }),
+      [0],
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0]!.chunkIdx).toBe(0);
+  });
+
+  it("skips a malformed chunk while keeping its siblings", () => {
+    const r = parseBatchResponse(
+      JSON.stringify({
+        chunks: [
+          { idx: 0, ru: "Первый", phrases: [] },
+          { idx: 1, ru: null, phrases: [] },
+          { idx: 2 },
+          { idx: 3, ru: "Третий", phrases: [] },
+        ],
+      }),
+      [0, 1, 2, 3],
+    );
+    expect(r.map((c) => c.chunkIdx)).toEqual([0, 3]);
+  });
+
+  it("clamps worth into 1..5 and defaults missing worth to 3", () => {
+    const r = parseBatchResponse(
+      JSON.stringify({
+        chunks: [
+          {
+            idx: 0,
+            ru: "Перевод",
+            phrases: [
+              { span: "a", ru: "а", worth: 0 },
+              { span: "b", ru: "б", worth: 99 },
+              { span: "c", ru: "в" },
+            ],
+          },
+        ],
+      }),
+      [0],
+    );
+    expect(r[0]!.phrases.map((p) => p.worth)).toEqual([1, 5, 3]);
+  });
+
+  it("caps phrases at 3 per chunk", () => {
+    const phrases = Array.from({ length: 10 }, (_, i) => ({
+      span: `span ${i}`,
+      ru: `перевод ${i}`,
+      worth: 3,
+    }));
+    const r = parseBatchResponse(JSON.stringify({ chunks: [{ idx: 0, ru: "Перевод", phrases }] }), [0]);
+    expect(r[0]!.phrases.length).toBeLessThanOrEqual(3);
+  });
+
+  it("normalizes an unknown kind to plain", () => {
+    const r = parseBatchResponse(
+      JSON.stringify({
+        chunks: [{ idx: 0, ru: "Перевод", phrases: [{ span: "x", ru: "y", kind: "banana" }] }],
+      }),
+      [0],
+    );
+    expect(r[0]!.phrases[0]!.kind).toBe("plain");
+  });
+
+  it("returns [] for an unparseable payload", () => {
+    expect(parseBatchResponse("not json at all {{{", [0])).toEqual([]);
+  });
+
+  it("parses a bare array without a `chunks` wrapper", () => {
+    const r = parseBatchResponse(JSON.stringify([{ idx: 0, ru: "Перевод", phrases: [] }]), [0]);
+    expect(r).toHaveLength(1);
+  });
+
+  it("parses JSON wrapped in a ```json code fence", () => {
+    const r = parseBatchResponse(
+      '```json\n{"chunks":[{"idx":0,"ru":"Перевод","phrases":[]}]}\n```',
+      [0],
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0]!.ru).toBe("Перевод");
   });
 });

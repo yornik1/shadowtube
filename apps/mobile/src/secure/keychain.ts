@@ -4,6 +4,8 @@ const GEMINI_KEY = "shadowtube_gemini_api_key";
 const GEMINI_MODEL = "shadowtube_gemini_model";
 const PROXY_URL_OVERRIDE = "shadowtube_proxy_url_override";
 const CARD_MODE = "shadowtube_card_mode";
+const AUTO_CARDS = "shadowtube_auto_cards";
+const HIDE_TEXT = "shadowtube_hide_text";
 
 export async function getGeminiKey(): Promise<string | null> {
   return SecureStore.getItemAsync(GEMINI_KEY);
@@ -43,4 +45,19 @@ export async function getCardMode(): Promise<string | null> {
 
 export async function setCardMode(mode: string): Promise<void> {
   await SecureStore.setItemAsync(CARD_MODE, mode);
+}
+
+/** Булевы настройки: отсутствие значения означает дефолт, а не false. */
+export async function getFlag(name: "autoCards" | "hideText"): Promise<boolean | null> {
+  const key = name === "autoCards" ? AUTO_CARDS : HIDE_TEXT;
+  const raw = await SecureStore.getItemAsync(key);
+  return raw == null ? null : raw === "1";
+}
+
+export async function setFlag(
+  name: "autoCards" | "hideText",
+  value: boolean,
+): Promise<void> {
+  const key = name === "autoCards" ? AUTO_CARDS : HIDE_TEXT;
+  await SecureStore.setItemAsync(key, value ? "1" : "0");
 }

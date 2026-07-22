@@ -62,3 +62,27 @@ export type ChunkTranslation = {
   ru: string;
   notes: PhraseNote[];
 };
+
+/**
+ * Готовая к сохранению карточка, сформированная моделью.
+ *
+ * Границы фразы определяет модель, а не регулярка: автосабы дают обрывки вроде
+ * «figure out- - That's», и алгоритмически отличить их от нормальной фразы
+ * нельзя. Модель возвращает уже вычищенную форму.
+ */
+export type PhraseCandidate = {
+  /** Чистая форма фразы, пригодная для карточки. */
+  span: string;
+  ru: string;
+  definitionEn: string;
+  kind: PhraseKind;
+  /** Насколько фраза стоит заучивания, 1..5. Отсекает мусор и банальности. */
+  worth: number;
+};
+
+/** Разбор одного чанка в пакетном ответе модели. */
+export type ChunkAnalysis = {
+  chunkIdx: number;
+  ru: string;
+  phrases: PhraseCandidate[];
+};

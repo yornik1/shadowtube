@@ -60,6 +60,25 @@ function assertSafeDefinition(name: string, definition: string): void {
   }
 }
 
+/**
+ * Колонки FSRS.
+ *
+ * FSRS описывает память тремя величинами вместо одного «ease factor» из SM-2:
+ * stability (сколько дней продержится), difficulty (тяжесть карточки лично
+ * для тебя) и state (новая / изучается / повторяется / переучивается).
+ * Старые `ef` и `interval_days` остаются нетронутыми — это путь отката.
+ */
+export const FSRS_COLUMNS: ColumnSpec = {
+  stability: "REAL",
+  difficulty: "REAL",
+  // 0=New 1=Learning 2=Review 3=Relearning — совпадает с enum State из ts-fsrs.
+  fsrs_state: "INTEGER NOT NULL DEFAULT 0",
+  // Сколько дней прошло с прошлого показа на момент оценки; нужно FSRS для
+  // пересчёта stability и для будущей оптимизации весов по своей истории.
+  elapsed_days: "REAL NOT NULL DEFAULT 0",
+  scheduled_days: "REAL NOT NULL DEFAULT 0",
+};
+
 /** Колонки, добавленные к `vocabulary` после MVP. */
 export const VOCABULARY_COLUMNS: ColumnSpec = {
   // Что за карточка: фраза (выделение) или весь чанк целиком.

@@ -1,6 +1,6 @@
 # ShadowTube
 
-Android-приложение для **language shadowing** с YouTube: вставьте ссылку → субтитры режутся по предложениям → петля воспроизведения чанков → тап по слову → перевод через Gemini (BYOK) → локальный словарь.
+Android-приложение для **language shadowing** с YouTube: вставьте ссылку → субтитры режутся по предложениям → петля воспроизведения чанков → выделение фразы тап-тапом → перевод в контексте через Gemini (BYOK) → карточка в словарь → интервальные повторения (FSRS).
 
 **Для AI-ассистентов (Cursor / Claude Code):** [AGENTS.md](./AGENTS.md) · [CLAUDE.md](./CLAUDE.md)
 
@@ -248,4 +248,5 @@ cd android && ./gradlew assembleRelease
 - en → ru перевод (хардкод)
 - Чанкинг по предложениям / паузам (не по таймеру)
 - Resume сессии, локальный словарь
-- **Не в MVP:** Whisper fallback, запись голоса, auth/sync, SRS
+- Интервальные повторения (FSRS), автосоздание карточек — см. [docs/SRS.md](docs/SRS.md)
+- **Не в MVP:** Whisper fallback, запись голоса, auth/sync, экспорт данных

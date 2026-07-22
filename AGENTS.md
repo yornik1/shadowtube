@@ -74,10 +74,17 @@ Gemini API key **не** в env — только BYOK в `expo-secure-store` (э�
 | `app/session/[videoId].tsx` | Сессия shadowing, плеер, чанки; `?chunk=N` — прыжок из карточки |
 | `src/chunking/chunker.ts` | **Чанкинг по предложениям/паузам** — не ломать границы фраз |
 | `src/api/transcript.ts` | HTTP-клиент к proxy |
-| `src/api/gemini.ts` | Сеть, кэш, фолбэк моделей |
+| `src/api/gemini.ts` | Сеть, цепочка моделей, лимиты вывода |
 | `src/api/geminiPrompts.ts` | **Промпты и парсеры** — чистые, под тестами |
+| `src/api/geminiBatch.ts` | **Пакетный перевод скользящим окном** — память → SQLite → сеть |
+| `src/api/batchWindow.ts` | Арифметика окна; отдельно от geminiBatch, чтобы тест не тянул expo-sqlite |
+| `src/api/geminiFake.ts` | `EXPO_PUBLIC_FAKE_GEMINI=1` — прогон цепочки без ключа и квоты |
+| `src/db/repos/chunkCache.ts` | Кэш переводов чанков + хэш текста для инвалидации |
 | `src/session/spanSelection.ts` | **Выделение фразы тап-тапом** — чистая логика |
-| `src/srs/sm2.ts` | SM-2 на трёх оценках |
+| `src/srs/fsrs.ts` | **Планировщик повторений (ts-fsrs)** — актуальный |
+| `src/srs/autoCards.ts` | Отбор фраз для автосоздания: пороги, лимиты, отсев мусора |
+| `src/srs/sm2.ts` | Легаси SM-2 — путь отката, не использовать в новом коде |
+| `src/updates/otaUpdates.ts` | Проверка и применение OTA; expo-updates грузится **лениво** |
 | `src/srs/streak.ts` | Цепочка дней, дневная норма (10) |
 | `src/srs/cardModes.ts` | Три режима карточки (настройка) |
 | `src/srs/notifications.ts` | Напоминание; expo-notifications грузится **лениво** |

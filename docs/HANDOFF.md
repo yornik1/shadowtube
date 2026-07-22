@@ -1,56 +1,90 @@
 # ShadowTube — handoff для нового агента
 
-**Проект:** monorepo `shadowtube/` — Expo 56 Android + Node proxy (:8787) + Gemini/Gemma перевод.
+**Проект:** monorepo `shadowtube/` — Expo 56 Android + Node proxy (:8787) + перевод через Gemini (BYOK).
 
-## Запуск (телефон не видит Mac по LAN)
+Полный контекст: [AGENTS.md](../AGENTS.md). Этот файл — короткий вход в тему.
+
+## Что это делает
+
+Вставляешь ссылку на YouTube → субтитры режутся на чанки по предложениям →
+плеер гоняет чанк по кругу, ты повторяешь вслух → выделяешь фразу тап-тапом и
+получаешь перевод в контексте → фраза становится карточкой → карточки всплывают
+по интервальным повторениям (FSRS).
+
+## Запуск
 
 ```bash
-cd /Users/mich/PycharmProjects/shadowtube
-pnpm tunnel   # proxy + ngrok + expo --tunnel --clear
+# Терминал 1 — proxy (нужен для dev-логов; субтитры идут напрямую с устройства)
+pnpm proxy:dev
+
+# Терминал 2 — Metro + эмулятор
+pnpm mobile:android
+
+# Без ключа Gemini: фейковый переводчик, вся цепочка проходится целиком
+EXPO_PUBLIC_FAKE_GEMINI=1 SHADOWTUBE_USE_LOCAL_PROXY=1 pnpm mobile
 ```
 
-Expo Go SDK 56 — APK с https://expo.dev/go (Play Store отстаёт).
+Телефон не видит Mac по LAN → `pnpm tunnel` (proxy + ngrok + expo --tunnel).
+
+Expo Go SDK 56 — APK с https://expo.dev/go, в Play Store версия отстаёт.
 
 ## Тесты без телефона
 
 ```bash
-pnpm proxy:dev &
-pnpm test   # chunker + proxy integration
+pnpm typecheck   # три пакета
+pnpm test        # 169 mobile + 9 proxy
 ```
 
-## Что уже сделано
+Чистая логика вынесена намеренно, чтобы её можно было гонять без устройства:
+чанкинг, выделение фразы, промпты и парсеры, SM-2/FSRS, цепочка дней, отбор
+автокарточек, планировщик миграций, арифметика окна предзагрузки.
 
-- `pnpm tunnel` — один скрипт: proxy, ngrok, Metro tunnel
-- `app.config.ts` — auto IP; `updates.enabled: false`
-- Web-fix: `client.web.ts`, `home.web.tsx`, repos → `../client`
-- Settings: ключ → `verifyApiKey` → список моделей из API; модель в SecureStore
-- Перевод: batch на весь чанк + prefetch; кэш; race fix в TranslationSheet
-- Дефолт модели: `gemini-2.5-flash-latest`, fallback gemma
-- Session: границы чанка, pause-on-end, только Next/Prev меняют чанк, Replay для проигрывания
+## Что важно знать до первой правки
 
-## Известные проблемы / проверить
+**Квота Gemini определяет архитектуру.** Free tier — 500 запросов в сутки, а
+трёхчасовое видео это 1234 чанка. Поэтому перевод идёт пакетами по 20 чанков
+скользящим окном и кэшируется в SQLite. Запрос на чанк добавлять нельзя, это
+сразу выносит дневной лимит.
 
-1. **Плеер** — `getCurrentTime()` на Expo Go часто 0; fallback по wall-clock. Проверить что видео реально не уползает за чанк
-2. **Перевод** — batch-промпт может быть медленным; Gemma иногда 500
-3. **Tunnel** — ngrok URL меняется каждый раз; localtunnel больше не используется
+**Только `latest`-алиасы моделей.** `gemini-2.5-flash-latest` НЕ существует
+(404) — он стоял дефолтом, и каждый первый запрос уходил впустую. Сейчас дефолт
+`gemini-flash-lite-latest`. Прибитые версии стареют, и им режут квоты.
 
-## Ключевые файлы
+**Gemma не годится** — игнорирует «только JSON» и отвечает прозой с буллетами.
+Не возвращать в фолбэки.
 
-| Файл | Роль |
-|------|------|
-| `scripts/tunnel.mjs` | dev через tunnel |
-| `apps/mobile/app/session/[videoId].tsx` | плеер + чанки |
-| `apps/mobile/src/api/gemini.ts` | перевод, модели, кэш |
-| `apps/mobile/app/(tabs)/settings.tsx` | ключ + выбор модели |
-| `apps/proxy/src/node-server.ts` | субтитры |
-| `apps/mobile/src/chunking/chunker.ts` | нарезка (тесты обязательны) |
+**Фейк-режим проверяет проводку, но не договорённость с моделью.** Если трогаешь
+промпты — гонять с реальным ключом, иначе легко получить ложную уверенность.
 
-## MVP scope (не трогать без запроса)
+**Миграции только `ADD COLUMN`.** `CREATE TABLE IF NOT EXISTS` не трогает
+существующую таблицу, новые поля приезжают через `ensureColumns`. NOT NULL
+обязан иметь DEFAULT, иначе SQLite не заполнит существующие строки.
 
-en→ru, chunking по предложениям, BYOK Gemini, SQLite локально. Без SRS/auth/sync.
+**Нативная зависимость → поднять `version` в `app.config.ts`.** `runtimeVersion`
+завязан на неё, и без подъёма OTA доставит JS на APK, где нативного модуля нет.
 
-## Как использовать в Cursor
+## Выкатка
 
-Новый чат (Cmd+L / New Chat) → вставь этот файл или скажи агенту: «прочитай `docs/HANDOFF.md` и продолжай с …». Старый чат можно закрыть — контекст не переносится автоматически.
+[docs/RELEASE.md](./RELEASE.md) — два канала (OTA против APK), критерий выбора и
+три сценария отката.
 
-Полный контекст проекта: [AGENTS.md](../AGENTS.md).
+## Известные проблемы
+
+1. **Плеер** — `getCurrentTime()` в Expo Go часто отдаёт 0, есть fallback по
+   wall-clock. Отладка pause-on-end: [docs/E2E-ANDROID.md](./E2E-ANDROID.md).
+2. **Уведомления только в APK** — в Expo Go модуль падает на импорте, поэтому
+   грузится лениво.
+3. **Нет экспорта данных** — переустановка APK стирает словарь и прогресс.
+4. **OTA ни разу не публиковался** на 2026-07-22, откат вживую не проверялся.
+5. **Tunnel** — ngrok URL меняется каждый запуск.
+
+## Границы MVP (не трогать без запроса)
+
+en→ru, чанкинг по предложениям, BYOK Gemini, SQLite локально, только Android.
+Без авторизации, синхронизации и записи голоса. SRS больше НЕ вне скоупа — он
+реализован, см. [docs/SRS.md](./SRS.md).
+
+## Как использовать
+
+Новый чат → «прочитай `docs/HANDOFF.md` и продолжай с …». Контекст между чатами
+не переносится автоматически.

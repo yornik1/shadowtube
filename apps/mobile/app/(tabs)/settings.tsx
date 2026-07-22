@@ -381,9 +381,9 @@ export default function SettingsScreen() {
             <>
               <Text style={styles.hint}>
                 Канал {updateInfo.channel} · версия {updateInfo.runtimeVersion}
-                {updateInfo.updateId
-                  ? `\nOTA-ревизия: ${updateInfo.updateId.slice(0, 8)}`
-                  : "\nРаботает версия из APK"}
+                {updateInfo.isEmbedded
+                  ? "\nВерсия из APK (встроенная)"
+                  : `\nOTA-ревизия: ${updateInfo.updateId?.slice(0, 8) ?? "?"}`}
               </Text>
               <Pressable style={styles.btn} onPress={handleCheckUpdate} disabled={checkingUpdate}>
                 {checkingUpdate ? (

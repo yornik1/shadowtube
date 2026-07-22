@@ -77,8 +77,16 @@ export async function applyUpdate(): Promise<void> {
 export type UpdateInfo = {
   runtimeVersion: string;
   channel: string;
-  /** id установленной OTA-ревизии; null — работает встроенная в APK версия. */
+  /** id текущей ревизии. Не пустой и у встроенного бандла — сам по себе не отличает источник. */
   updateId: string | null;
+  /**
+   * Запущен бандл, вшитый в APK (а не скачанный по OTA).
+   *
+   * Именно это нужно видеть во время аварии: после
+   * `update:roll-back-to-embedded` признаком успеха является возврат на
+   * встроенную версию, а по одному `updateId` этого не понять.
+   */
+  isEmbedded: boolean;
   createdAt: Date | null;
   enabled: boolean;
 };
@@ -89,6 +97,7 @@ export function currentUpdateInfo(): UpdateInfo {
     runtimeVersion: U?.runtimeVersion ?? "?",
     channel: U?.channel ?? "—",
     updateId: U?.updateId ?? null,
+    isEmbedded: Boolean(U?.isEmbeddedLaunch),
     createdAt: U?.createdAt ?? null,
     enabled: Boolean(U?.isEnabled),
   };

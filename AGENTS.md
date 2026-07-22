@@ -171,6 +171,8 @@ CORS: `*`. Node-сервер слушает `PORT` (default 8787).
 
 ## Обновления (OTA)
 
+Полный процесс выкатки и отката: [docs/RELEASE.md](./docs/RELEASE.md).
+
 `src/updates/otaUpdates.ts` + секция «Обновления» в Настройках.
 
 ```bash

@@ -41,7 +41,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     platforms: ["android", "web"],
     name: "ShadowTube",
     slug: "shadowtube",
-    version: "1.0.0",
+    // runtimeVersion завязан на это поле (policy: appVersion). Поднимать при
+    // КАЖДОМ добавлении нативного модуля, иначе OTA доставит JS, зовущий
+    // модуль, которого в старом APK физически нет. 1.1.0 = +expo-notifications.
+    version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/images/icon.png",
     scheme: "shadowtube",

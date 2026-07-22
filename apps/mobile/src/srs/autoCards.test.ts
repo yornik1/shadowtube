@@ -39,7 +39,15 @@ describe("selectAutoCards", () => {
   });
 
   it("rejects auto-caption garbage", () => {
-    const spans = ["figure out- - That's", "[Music] hello", "(laughs) sure", "42"];
+    const spans = [
+      "figure out- - That's",
+      "[Music] hello",
+      "(laughs) sure",
+      "42",
+      // Спан перескочил через слом реплики — em-dash внутри фразы.
+      "What's the process—can",
+      "well I mean… anyway",
+    ];
     for (const span of spans) {
       const r = selectAutoCards([phrase({ span })], fresh);
       expect(r.accepted, span).toHaveLength(0);

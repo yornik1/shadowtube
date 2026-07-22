@@ -74,9 +74,13 @@ export function fakeBatchAnalyses(
   chunks: { idx: number; text: string }[],
 ): ChunkAnalysis[] {
   return chunks.map(({ idx, text }) => {
-    const words = text.trim().split(/\s+/);
-    // Берём осмысленный кусок из середины, чтобы карточка выглядела как живая.
-    const span = words.slice(1, 4).join(" ") || text.trim().slice(0, 24);
+    // Фейк обязан быть РЕПРЕЗЕНТАТИВНЫМ: настоящая модель возвращает чистую
+    // фразу внутри одного предложения. Слепая нарезка words[1..4] давала
+    // спаны через слом реплики («What's the process—can»), и на них легко
+    // сделать ложный вывод, что автокарточки работают чисто.
+    const sentence = text.split(/[.!?—–]|\.\.\./)[0] ?? text;
+    const words = sentence.trim().replace(/[^\p{L}\p{N}'\s-]/gu, "").split(/\s+/).filter(Boolean);
+    const span = words.length >= 3 ? words.slice(1, 4).join(" ") : words.join(" ");
     return {
       chunkIdx: idx,
       ru: `${FAKE_PREFIX} перевод чанка ${idx}: ${text.trim().slice(0, 80)}`,

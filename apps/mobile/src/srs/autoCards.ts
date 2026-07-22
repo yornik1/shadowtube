@@ -28,6 +28,10 @@ function isUsableSpan(span: string): boolean {
   // Остатки автосабов: «figure out- - That's», «[Music]», «(laughs)».
   // Дефис внутри слова (well-known) законен, дефис рядом с пробелом — нет.
   if (/--|\s-|-\s|\[|\]|\(|\)/.test(s)) return false;
+  // Тире и многоточие внутри спана означают, что он перескочил через слом
+  // реплики: «What's the process—can you take me…». Внутри одной фразы,
+  // пригодной для карточки, их не бывает.
+  if (/[—–…]|\.\.\./.test(s)) return false;
   // Фраза обязана содержать буквы, а не только цифры и знаки.
   if (!/\p{L}/u.test(s)) return false;
   return true;

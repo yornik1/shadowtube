@@ -11,18 +11,33 @@ import {
   isFakeGemini,
 } from "./geminiFake";
 
-/** Алиас — всегда последний Flash. Если 404, fallback на gemma. */
-export const DEFAULT_MODEL = "gemini-2.5-flash-latest";
+/**
+ * Всегда «latest»-алиас, а не прибитая версия: Google выкатывает новые модели
+ * и режет квоты старым (у gemini-2.5-flash осталось 20 запросов в сутки).
+ *
+ * Именно flash-lite, а не flash: проверено запросом — `gemini-flash-lite-latest`
+ * резолвится в gemini-3.5-flash-lite, отдаёт чистый JSON и тратит НОЛЬ токенов
+ * на размышления, тогда как `gemini-flash-latest` (gemini-3.6-flash) сжёг 316
+ * thinking-токенов на перевод одного предложения. На пакете из 20 чанков это
+ * съело бы весь бюджет вывода.
+ */
+export const DEFAULT_MODEL = "gemini-flash-lite-latest";
 
 export type GeminiModelInfo = {
   id: string;
   displayName: string;
 };
 
+/**
+ * Порядок отката. Gemma намеренно ИСКЛЮЧЕНА: она отвечает 200, но игнорирует
+ * требование «только JSON» и выдаёт прозу с буллетами («* Source sentence:
+ * ...»), то есть как фолбэк для структурированного вывода бесполезна.
+ * Прибитые версии — только последним рубежом, если алиасы отвалятся.
+ */
 const FALLBACK_MODELS = [
-  "gemini-2.5-flash-latest",
-  "gemma-4-26b-a4b-it",
-  "gemma-4-31b-it",
+  "gemini-flash-lite-latest",
+  "gemini-flash-latest",
+  "gemini-3.5-flash-lite",
   "gemini-2.5-flash-lite",
 ];
 
@@ -43,10 +58,20 @@ function formatApiError(status: number, body: string): string {
   return body.slice(0, 200) || `API error ${status}`;
 }
 
+/** Одна фраза или один чанк: ответ короткий. */
+export const MAX_OUTPUT_TOKENS_SINGLE = 1024;
+/**
+ * Пакет из 20 чанков: перевод плюс до трёх фраз с определениями на каждый.
+ * По замерам это ~150 токенов на чанк, и упереться в потолок здесь означает
+ * оборванный JSON и потерю всего пакета, а не одного чанка.
+ */
+export const MAX_OUTPUT_TOKENS_BATCH = 8192;
+
 async function callModel(
   apiKey: string,
   model: string,
   prompt: string,
+  maxOutputTokens: number,
 ): Promise<string> {
   const url = `${BASE}/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
   const res = await fetch(url, {
@@ -54,7 +79,7 @@ async function callModel(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+      generationConfig: { temperature: 0.1, maxOutputTokens },
     }),
   });
 
@@ -81,15 +106,16 @@ function modelsToTry(preferred: string): string[] {
 
 const RETRY_STATUSES = new Set([404, 429, 500, 503]);
 
-async function callWithFallback(
+export async function callWithFallback(
   apiKey: string,
   model: string,
   prompt: string,
+  maxOutputTokens = MAX_OUTPUT_TOKENS_SINGLE,
 ): Promise<string> {
   let lastError: Error | null = null;
   for (const m of modelsToTry(model)) {
     try {
-      return await callModel(apiKey, m, prompt);
+      return await callModel(apiKey, m, prompt, maxOutputTokens);
     } catch (e) {
       lastError = e instanceof Error ? e : new Error(String(e));
       const status = (e as Error & { status?: number }).status;
@@ -223,12 +249,22 @@ function sortModels(models: GeminiModelInfo[]): GeminiModelInfo[] {
   });
 }
 
-/** Лучший дефолт из списка, доступного ключу. */
+/**
+ * Лучший дефолт из списка, доступного ключу.
+ *
+ * flash-lite впереди flash: у него нет thinking-токенов и вчетверо больше
+ * дневная квота, а качества для перевода чанков хватает. Gemma не предлагается
+ * вовсе — она не держит формат JSON.
+ */
 export function pickDefaultModel(models: GeminiModelInfo[]): string {
+  const liteLatest = models.find((m) => m.id === "gemini-flash-lite-latest");
+  if (liteLatest) return liteLatest.id;
+  const anyLiteLatest = models.find((m) => m.id.includes("flash-lite-latest"));
+  if (anyLiteLatest) return anyLiteLatest.id;
   const flashLatest = models.find((m) => m.id.includes("flash-latest"));
   if (flashLatest) return flashLatest.id;
-  const gemma = models.find((m) => m.id.startsWith("gemma-4-26b"));
-  if (gemma) return gemma.id;
+  const lite = models.find((m) => m.id.includes("flash-lite"));
+  if (lite) return lite.id;
   return models[0]?.id ?? DEFAULT_MODEL;
 }
 

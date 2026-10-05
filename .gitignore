@@ -18,3 +18,36 @@ web-build/
 coverage/
 .turbo/
 .omc/
+
+# secrets and credentials
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.pfx
+id_rsa*
+id_ed25519*
+credentials*.json
+secrets.json
+secrets.y*ml
+*.session
+*.session-journal
+# local data
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+# OS and local agent/IDE state
+.omx*
+.codex/
+.claude/
+.cursor/
+.agents/
+.idea/
+# project-specific
+*.keystore
+google-services.json
+*.apk
+*.aab

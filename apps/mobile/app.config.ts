@@ -2,7 +2,7 @@ import { ExpoConfig, ConfigContext } from "expo/config";
 import os from "os";
 
 const PROD_PROXY_URL =
-  "http://ec2-16-16-146-238.eu-north-1.compute.amazonaws.com:8788";
+  process.env.EXPO_PUBLIC_PROD_PROXY_URL ?? "http://proxy.example.com:8788";
 
 /** Returns the first non-loopback IPv4 address on the host machine. */
 function getLocalIP(): string {

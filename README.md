@@ -174,7 +174,7 @@ GitHub Actions workflow: `.github/workflows/deploy-ec2.yml`.
 - Docker Compose service: `shadowtube-proxy`
 - Container port: `8787`
 - Public host port: `8788`
-- APK/default proxy URL: `http://ec2-16-16-146-238.eu-north-1.compute.amazonaws.com:8788`
+- APK/default proxy URL: `EXPO_PUBLIC_PROD_PROXY_URL` (build-time env, e.g. `http://<your-proxy-host>:8788`)
 
 Manual deploy after opening AWS Security Group inbound `8788/tcp`:
 
